@@ -176,7 +176,11 @@ def set_values(text: str, values: dict) -> str:
         if comment.strip() and not comment.startswith(" "):
             comment = " " + comment  # "key:  # note" had no value; keep the comment separate
         new = _emit_value(key, values[path], indent)
-        new[0] = new[0] + (comment if comment.strip() else "")
+        if comment.strip():
+            # Keep the comment in its original column when the new value fits.
+            column = len(line) - len(comment.lstrip(" "))
+            first = new[0]
+            new[0] = (first.ljust(column) if len(first) < column else first + " ") + comment.strip()
         out.extend(new)
         done.add(path)
         i += 1
@@ -361,11 +365,18 @@ def check(root: Path, repo: str | None = None, token: str | None = None,
         else:
             results["B1"] = ("failed", f"signed-in user is {user.get('login')}, not bot.github")
         perm, err = _api(f"/repos/{repo}/collaborators/{bot}/permission", token, api, urlopen)
+        source = ""
+        if err:  # some environments block this endpoint: fall back to the collaborator list
+            people, err2 = _api(f"/repos/{repo}/collaborators?per_page=100", token, api, urlopen)
+            match = [c for c in (people or []) if isinstance(people, list)
+                     and str(c.get("login", "")).lower() == bot.lower()]
+            perm, source = (match[0], " (collaborator list)") if match else (None, "")
+            err = None if match else (err2 or f"{bot} is not a collaborator")
         if err:
             results["B2"] = ("pending", f"could not read the collaborator permission ({err}); {manual}")
         else:
             role = perm.get("role_name") or perm.get("permission")
-            results["B2"] = (("passed", f"{bot} has role {role}") if role == "write"
+            results["B2"] = (("passed", f"{bot} has role {role}{source}") if role == "write"
                              else ("failed", f"{bot} has role {role}; it must be write (not admin or maintain)"))
         rules, err = _api(f"/repos/{repo}/rules/branches/main", token, api, urlopen)
         if err or not isinstance(rules, list):
@@ -373,9 +384,18 @@ def check(root: Path, repo: str | None = None, token: str | None = None,
             results["B3"] = results["B4"] = ("pending", note)
         else:
             types = {r.get("type") for r in rules}
-            need = {"update", "deletion", "non_fast_forward", "pull_request"}
-            results["B3"] = (("passed", f"main rules include {', '.join(sorted(need))}") if need <= types
-                             else ("failed", f"main rules lack {', '.join(sorted(need - types))} (docs/sop/setup.md step 5)"))
+            need = {"creation", "update", "deletion", "non_fast_forward", "pull_request"}
+            if need <= types:
+                # The rules are visible to the machine account, the bypass list is not
+                # (S4 trial, design doc 20 Q1): the Owner confirms it, then records B3.
+                results["B3"] = ("pending", f"main rules include {', '.join(sorted(need))}; the bypass list "
+                                 "is not visible to the machine account, so the Owner confirms it holds only "
+                                 f"the Owner (For pull requests only), then: {manual}")
+            elif not types:
+                results["B3"] = ("failed", "no rule applies to main: check the ruleset's Target branches "
+                                 "(Include default branch) and Enforcement (Active), docs/sop/setup.md step 5")
+            else:
+                results["B3"] = ("failed", f"main rules lack {', '.join(sorted(need - types))} (docs/sop/setup.md step 5)")
             contexts = {c.get("context") for r in rules if r.get("type") == "required_status_checks"
                         for c in r.get("parameters", {}).get("required_status_checks", [])}
             missing = [c for c in guards.CHECKS if c not in contexts]

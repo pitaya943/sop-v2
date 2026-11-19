@@ -7,6 +7,7 @@ import importlib.machinery
 import importlib.util
 import io
 import json
+import re
 import shutil
 import subprocess
 import urllib.error
@@ -133,7 +134,7 @@ def test_set_values_handles_tricky_lists_and_blocks(project):
     assert data["overrides"]["disabled_guards"] == guards_list
     again = bootstrap.set_values(out, {"overrides.disabled_guards": []})  # replaces the old block
     assert config.parse_yaml(again)["overrides"]["disabled_guards"] == []
-    assert "disabled_guards: [] # list of" in again
+    assert re.search(r"disabled_guards: \[\] +# list of", again)  # comment kept, separated by spaces
 
 
 # ---------------------------------------------------------------------------
@@ -197,7 +198,7 @@ def fake_github(responses):
     return urlopen
 
 
-GOOD_RULES = [{"type": t} for t in ("update", "deletion", "non_fast_forward", "pull_request")] + [
+GOOD_RULES = [{"type": t} for t in ("creation", "update", "deletion", "non_fast_forward", "pull_request")] + [
     {"type": "required_status_checks",
      "parameters": {"required_status_checks": [{"context": c} for c in guards.CHECKS]}}]
 GOOD_API = {"/user": {"login": "example-bot"},
@@ -220,8 +221,10 @@ def test_check_passes_everything_on_a_finished_project(project):
     results = bootstrap.check(project, "example-owner/example-project", "token",
                               urlopen=fake_github(GOOD_API))
     assert {cid: s for cid, (s, _) in results.items()} == {
-        "B1": "passed", "B2": "passed", "B3": "passed", "B4": "passed",
+        "B1": "passed", "B2": "passed", "B3": "pending", "B4": "passed",
         "B5": "passed", "B6": "not_applicable", "B7": "passed"}
+    # The rules are right, but the bypass list isn't visible to the machine account (S4, Q1).
+    assert "bypass list" in results["B3"][1]
 
 
 @pytest.mark.parametrize("override, cid, status", [
@@ -229,7 +232,8 @@ def test_check_passes_everything_on_a_finished_project(project):
     ({"/collaborators/example-bot/permission": {"permission": "admin", "role_name": "admin"}}, "B2", "failed"),
     ({"/collaborators/example-bot/permission": {"permission": "write", "role_name": "maintain"}}, "B2", "failed"),
     ({"/rules/branches/main": [{"type": "pull_request"}]}, "B3", "failed"),
-    ({"/rules/branches/main": GOOD_RULES[:4]}, "B4", "failed"),
+    ({"/rules/branches/main": GOOD_RULES[:5]}, "B4", "failed"),
+    ({"/rules/branches/main": GOOD_RULES[1:]}, "B3", "failed"),  # no Restrict creations
     ({"/rules/branches/main": 403}, "B3", "pending"),  # unreadable: record a screenshot by hand
 ])
 def test_check_reports_each_problem(project, override, cid, status):
@@ -237,6 +241,16 @@ def test_check_reports_each_problem(project, override, cid, status):
     results = bootstrap.check(project, "example-owner/example-project", "token",
                               urlopen=fake_github({**GOOD_API, **override}), run_tests=False)
     assert results[cid][0] == status
+
+
+def test_b2_falls_back_to_the_collaborator_list(project):
+    """Some environments block the permission endpoint (S4 trial finding)."""
+    _configured(project)
+    api = {**GOOD_API, "/collaborators/example-bot/permission": 403,
+           "/collaborators?per_page=100": [{"login": "example-bot", "role_name": "write"}]}
+    results = bootstrap.check(project, "example-owner/example-project", "token", urlopen=fake_github(api),
+                              run_tests=False)
+    assert results["B2"] == ("passed", "example-bot has role write (collaborator list)")
 
 
 def test_check_without_a_token_leaves_api_checks_pending(project):
@@ -281,5 +295,19 @@ def test_end_to_end_bootstrap_opens_the_gate(project):
     _passing_test_script(project)
     bootstrap.record(project, bootstrap.check(project, "example-owner/example-project", "token",
                                               urlopen=fake_github(GOOD_API)))
+    assert bootstrap.finalize(project) == ["B3 is pending"]  # the bypass list needs the Owner
+    bootstrap.record(project, {"B3": ("passed", "rules via API; Owner confirmed bypass list = Owner only")})
     assert bootstrap.finalize(project) == []
     assert guards.sop_ready(project).ok
+
+
+def test_comments_keep_their_column_when_the_value_fits(project):
+    """S4 trial finding: written values pushed comments out of line."""
+    before = (project / ".sop" / "config.yml").read_text().splitlines()
+    assert bootstrap.write_config(project, ANSWERS) == []
+    after = (project / ".sop" / "config.yml").read_text().splitlines()
+    for old, new in zip(before, after):
+        if " # " in old and old.split("#")[0].strip().endswith("null"):
+            value_end = len(new.split("  #")[0].rstrip())
+            if value_end < old.index("#"):
+                assert new.index("#") == old.index("#"), new
