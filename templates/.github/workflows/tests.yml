@@ -1,0 +1,26 @@
+# pitaya template 3.0.0-dev.0 · .github/workflows/tests.yml
+# Runs the project's test command on every pull request and on pushes to main.
+# Make the "tests" check required on main (see the "protect main" recipe), so a
+# pull request with failing tests can't merge.
+# When to remove: never while tests are the definition of done; replace it with
+# a fuller CI that still runs the same command.
+name: tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      # Add the setup steps the test command needs here, for example
+      # actions/setup-python or actions/setup-node and installing dependencies.
+      - name: Run the test command from docs/agents/harness.md
+        run: <TEST_COMMAND>

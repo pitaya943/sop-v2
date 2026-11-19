@@ -5,6 +5,7 @@ Read by every pitaya skill before it plans, builds, verifies or reports. Written
 ## Level
 
 - Level: 1. What it includes: `docs/suggestion.md` in the pitaya repo. Raise it by adding guardrail recipes; record each under "Guardrails" below.
+- Templates: pitaya 3.0.0-dev.0. The version `/setup` installed; re-run `/setup` to find stale copies.
 
 ## People and accounts
 

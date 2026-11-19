@@ -1,12 +1,12 @@
 ---
 name: setup
-description: Configure this repo for the pitaya skills. Explore it, ask two to four questions, and write docs/agents/harness.md, the file every other skill reads first. Run once per repo, and again whenever the answers change.
+description: Configure this repo for the pitaya skills. Explore it, ask a few questions, install the Level 1 defaults (AGENTS.md, permissions, hooks, a tests workflow) without overwriting anything, and write docs/agents/harness.md, the file every other skill reads first. Run once per repo, and again to update stale copies.
 disable-model-invocation: true
 ---
 
 # Setup
 
-Write `docs/agents/harness.md`: the short config every pitaya skill reads first. There is no gate. Other skills work without it, using safe defaults, so keep this quick.
+Install the defaults for the chosen level and write `docs/agents/harness.md`, the short config every pitaya skill reads first. There is no gate: other skills work without it, using safe defaults, so keep this quick. Re-running is safe; it reports stale copies instead of overwriting them.
 
 ## 1. Explore before asking
 
@@ -16,7 +16,7 @@ Read what exists. Don't assume.
 - `docs/agents/harness.md`: if it exists, you're updating it. Show the current values and ask only about what changes.
 - The test command: look at `package.json` scripts, `pyproject.toml`, `pytest.ini`, `Makefile`, `go.mod`, `Cargo.toml` and CI workflows. Run the best candidate once, exactly as you'll record it, and note whether it passes.
 - `docs/tickets/` or issues labelled `ticket`: where does planned work already live?
-- `AGENTS.md` and `CLAUDE.md`: is there already a pointer to the harness file?
+- `AGENTS.md`, `CLAUDE.md`, `.claude/settings.json`, `.github/workflows/`: what the project already has that the install must not overwrite.
 - Who you are on GitHub: `gh api user --jq .login`, or the GitHub tool's "get me" call. Don't guess.
 - If the skills were copied into `.claude/skills/`, run `git check-ignore -v .claude/skills/*/SKILL.md`. A broad rule such as `build/` hides the `build` skill from git; anchor it (`/build/`) and tell the user.
 
@@ -31,28 +31,25 @@ Lead each question with your recommendation, so the user can accept it in a word
 
 If an answer contradicts something you found (an account that doesn't exist, a failing test command), say what you found and ask again. Never fill in an answer yourself.
 
-## 3. Write
+## 3. Install and write
 
-1. Copy [harness-template.md](harness-template.md) to `docs/agents/harness.md` and fill it in. Delete lines that don't apply rather than leaving placeholders.
-2. Create `docs/decisions.md` and `docs/pitfalls.md` if the user chose them, each with only a title and one line saying what goes there.
-3. Add this section to `AGENTS.md`, or to `CLAUDE.md` if there's no `AGENTS.md`. Create `AGENTS.md` if neither exists.
+1. **Level.** Recommend Level 1 (the default) unless the user only wants the skills (Level 0). Levels 2 and 3 come later from recipes; `docs/suggestion.md` in the plugin's repo says what each level achieves.
+2. **Preview, then install.** From the repo root, run [scripts/install_templates.py](scripts/install_templates.py) with `--level`, `--test-command "<the confirmed command>"`, `--no-decisions` if the user declined the decision log, and `--check`. Show the user the output, then run it again without `--check`.
+   - `created` and `merged` are done. `merged` means `.claude/settings.json` gained rules and hooks; nothing of theirs was removed.
+   - `differs` and `stale` files were left alone. Show the diff against `../../templates/<path>` (relative to this file) and let the user choose. Never overwrite one yourself.
+   - If `AGENTS.md` differs, add a short "Agent harness" section to theirs instead, pointing to `docs/agents/harness.md`.
+3. **Harness file.** Copy [harness-template.md](harness-template.md) to `docs/agents/harness.md` and fill it in: the answers, the level, and under "Guardrails" the Level 1 parts that are now installed. Delete lines that don't apply rather than leaving placeholders.
+4. **CI.** Add to `.github/workflows/tests.yml` the setup steps the test command needs (a language runtime, installing dependencies). The first pull request must show the `tests` check passing.
+5. Show the user the diff, then commit with the message `Configure pitaya skills`. Open a PR only if the user asks.
 
-   ```markdown
-   ## Agent harness
+## 4. Hand the Owner the repo settings
 
-   Read `docs/agents/harness.md` before planning, building or verifying work.
-   ```
+The machine account can't change repo settings, so list these steps for the Owner, and check them afterwards where you can read them:
 
-4. Show the user the diff, then commit with the message `Configure pitaya skills`. Open a PR only if the user asks.
+- A ruleset on `main`: require a pull request, block force pushes and deletions, require the `tests` check, and let only the Owner bypass.
+- If there's a machine account: it's a collaborator with Write, not Admin.
 
-## 4. Recommend one guardrail
-
-End by recommending the cheapest missing guardrail. It's a recommendation, not a requirement.
-
-- No CI runs the tests: recommend "CI runs the tests".
-- CI exists, but anyone (or any agent) can push to `main`: recommend "protect `main`".
-
-The recipes live in `docs/guardrails/` of the pitaya plugin's repo. Installed as a plugin, that's `../../docs/guardrails/README.md` relative to this file; if it isn't there, point the user to the plugin's repo instead. Once a guardrail is added, list it under "Guardrails" in `docs/agents/harness.md`.
+Then name the next step up, from `docs/suggestion.md`: usually nothing until a second agent works in the repo (Level 2).
 
 ## Don't
 

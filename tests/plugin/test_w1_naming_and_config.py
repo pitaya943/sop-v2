@@ -63,6 +63,11 @@ def test_harness_template_field(label, default):
     assert default in lines[0]
 
 
+def test_harness_template_records_the_template_version():
+    version = json.loads(PLUGIN.read_text())["version"]
+    assert f"- Templates: pitaya {version}." in TEMPLATE.read_text()
+
+
 def test_pitfalls_are_off_by_default():
     # T12: decisions on, pitfalls off; the template mentions pitfalls only as an option.
     text = TEMPLATE.read_text()

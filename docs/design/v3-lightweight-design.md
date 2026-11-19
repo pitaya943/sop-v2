@@ -162,7 +162,7 @@ CHANGELOG.md
 | --- | --- | --- |
 | `AGENTS.md` | ≤ 100 行的地圖：指向 harness.md、測試指令、完成的定義、文件位置 | T2 |
 | `CLAUDE.md` | 只有一行，用 Claude Code 的匯入語法引入 `AGENTS.md` | T2 |
-| `.claude/settings.json` | deny：讀取 `.env*`、金鑰檔、雲端憑證目錄；allow：測試指令與常用唯讀 git 指令；其他維持詢問。不含沙箱 | T8 |
+| `.claude/settings.json` | deny：讀取 `.env*`、金鑰檔、雲端憑證目錄；allow：測試指令與常用唯讀 git 指令；其他維持詢問。不含沙箱。JSON 不能寫註解，所以它的版本記在 harness.md 的「Templates」；已存在時以「只增不減」的方式合併 | T8 |
 | `.claude/hooks/no_push_main.py` | PreToolUse：拒絕 `git push` 到預設分支與任何 force push | T6 |
 | `.claude/hooks/no_destructive.py` | PreToolUse：拒絕刪除根目錄或家目錄、`git reset --hard`、`git clean -fdx` 等 | T6 |
 | `.claude/hooks/ask_on_rule_files.py` | PreToolUse：編輯 AGENTS.md、CLAUDE.md、harness.md、`.claude/**`、`.github/workflows/**` 時改成詢問 | T6 |
@@ -171,13 +171,13 @@ CHANGELOG.md
 
 Hook 的共同規則：
 
-- 只用 Python 標準函式庫，讀 stdin 的 JSON，exit code 2 表示擋下。
+- 只用 Python 標準函式庫，讀 stdin 的 JSON；要擋下或詢問時，在 stdout 輸出 Claude Code 文件規定的 `hookSpecificOutput`（`permissionDecision` 為 `deny` 或 `ask`），放行時不輸出。讀不懂輸入時以 exit 1 回報錯誤並放行（不讓壞掉的 hook 卡住 session）。
 - 擋下時，訊息要寫出原因與怎麼做才對（例如「開 PR，由 Owner 合併」）。
 - 每個 hook 都有正反兩面的測試。
 - 每個 hook 的檔頭寫「什麼證據顯示可以拿掉它」（R6）。
 - Hook 只在 Claude Code 生效。其他工具從 AGENTS.md 讀到同樣的文字規則；擋推送到 `main` 的部分，另有 ruleset 在合併時把關（T2）。
 
-> **EN:** `/setup` copies these from `templates/`, each headed with its source version (T20): an AGENTS.md map of at most 100 lines, a CLAUDE.md that imports it, settings.json (deny secrets, allow the test command and read-only git, ask for the rest, no sandbox; T8), three PreToolUse hooks (no pushes to the default branch or force pushes; no destructive commands; ask before editing rule files; T6), a one-job tests workflow (T7) and an append-only decision log (T12). Hooks use only the standard library, read JSON on stdin, exit 2 to block, say why and what to do instead, have tests both ways, and state what evidence would justify removing them. They work only in Claude Code; other tools get the same rules as prose in AGENTS.md, and the ruleset still guards `main` at merge (T2).
+> **EN:** `/setup` copies these from `templates/`, each headed with its source version (T20): an AGENTS.md map of at most 100 lines, a CLAUDE.md that imports it, settings.json (deny secrets, allow the test command and read-only git, ask for the rest, no sandbox; T8), three PreToolUse hooks (no pushes to the default branch or force pushes; no destructive commands; ask before editing rule files; T6), a one-job tests workflow (T7) and an append-only decision log (T12). Hooks use only the standard library, read JSON on stdin, print a documented `hookSpecificOutput` decision (`deny` or `ask`) to block or ask, exit 1 loudly on unreadable input rather than wedging the session, say why and what to do instead, have tests both ways, and state what evidence would justify removing them. They work only in Claude Code; other tools get the same rules as prose in AGENTS.md, and the ruleset still guards `main` at merge (T2).
 
 ## 9. 護欄食譜 / Guardrail recipes
 
