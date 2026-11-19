@@ -70,9 +70,10 @@ scripts/sop/test  — 由專案實作（專案擁有，sop-sync 不覆寫）
 
 - 範本內附的 `scripts/sop/test` 故意失敗，訊息是「請實作測試介面」。接上測試是啟動閘門的一部分（B5）。
 - **它必須能在乾淨的 `ubuntu-24.04` runner 上直接執行**：自己安裝需要的套件、準備需要的拋棄式資源。`sop-guards` 的 `tests` job 直接呼叫它；`no-weakened-tests` 會在目標分支上執行**目標分支自己的** `scripts/sop/test`，再在 PR 上執行一次。
+- 在 `ubuntu-24.04` 上，系統的 Python 不允許直接 `pip install`（PEP 668）。需要安裝套件時，在腳本裡建立虛擬環境（例如 `python3 -m venv .venv`），並把 `.venv/` 加進 `.gitignore`。
 - 測試真的需要改名時，由 Chief 在 ticket 寫明舊名對新名的對應，並記錄在 `docs/decisions.md`。
 
-> **EN:** The project implements `scripts/sop/test` (project-owned, never overwritten by sync): exit 0 when all pass, write `build/sop/junit.xml`, keep test IDs (`classname::name`) stable. The shipped stub fails on purpose (bootstrap check B5). It must run as-is on a clean `ubuntu-24.04` runner, installing what it needs; `no-weakened-tests` runs the target branch's own script there, then the PR's. Necessary renames are mapped in the ticket and recorded in the decision log by the Chief.
+> **EN:** The project implements `scripts/sop/test` (project-owned, never overwritten by sync): exit 0 when all pass, write `build/sop/junit.xml`, keep test IDs (`classname::name`) stable. The shipped stub fails on purpose (bootstrap check B5). It must run as-is on a clean `ubuntu-24.04` runner, installing what it needs; `no-weakened-tests` runs the target branch's own script there, then the PR's. The runner's system Python refuses plain `pip install` (PEP 668), so install packages into a virtualenv created by the script. Necessary renames are mapped in the ticket and recorded in the decision log by the Chief.
 
 ## 5. 停用檢查 / Disabling a check
 

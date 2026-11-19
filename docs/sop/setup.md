@@ -70,11 +70,13 @@
 | Ruleset name | `protect-main` | — |
 | **Enforcement status** | **Active** | 選 **Evaluate** 時規則只會記錄、不會阻擋，機器帳號仍然可以合併 `main`。這是最常見的設定錯誤 |
 | **Bypass list** | 只加 **你自己**（Owner），模式選 **For pull requests only** | 開啟「Restrict updates」後，只有 bypass 名單上的人能更新 `main`，所以 Owner 必須在名單上。機器帳號**絕對不能**在名單上；若改用「Repository admin」角色，要確認機器帳號不是 Admin |
-| Target branches | **Include default branch** | — |
-| ✅ Restrict creations、Restrict updates、Restrict deletions | 開啟 | 只有 bypass 名單上的人能更新或刪除 `main` |
+| **Target branches** | 點 **Add target → Include default branch** | ⚠️ **留空時這個 ruleset 不套用到任何分支**，所有規則都形同虛設，畫面上卻看不出來。這是 S4 試用時實際發生的錯誤 |
+| ✅ **Restrict creations**、✅ **Restrict updates**、✅ **Restrict deletions** | 三個都要勾（名稱與畫面上的完全相同） | 只有 bypass 名單上的人能建立、更新或刪除 `main` |
 | ✅ Require a pull request before merging | 開啟；Required approvals 可以是 0 | 所有變更都經過 PR，CI 才會執行 |
 | ✅ Block force pushes | 開啟 | 歷史不能被改寫 |
 | ✅ Require status checks to pass | 第一次 CI 跑完之後再設定（第 7 步） | — |
+
+**完成後自我檢查：** 回到 Rulesets 列表，`protect-main` 應該顯示 **Active**，並套用到 1 個目標。`scripts/sop/bootstrap check` 會讀取 `main` 實際生效的規則（B3）；如果它說「no rule applies to main」，就是 Target branches 沒設。機器帳號讀不到 bypass list，所以 B3 最後要由你確認名單裡只有你自己。
 
 **Owner 怎麼合併（重要）：** 因為「Restrict updates」只允許 bypass 名單更新 `main`，**Owner 每次合併都是在使用 bypass**。合併頁面會出現 **Merge without waiting for requirements to be met (bypass rules)** 的勾選框。正確的做法是：
 
@@ -82,7 +84,7 @@
 
 這代表必要檢查擋得住其他人，但擋不住 Owner；「CI 通過才合併」對 Owner 來說是紀律，不是系統強制。機器帳號不在 bypass 名單上，所以完全被擋住（B3）。
 
-> **EN:** Create a branch ruleset named `protect-main`: Enforcement **Active** (Evaluate only logs, the most common mistake); bypass list **only you**, mode "For pull requests only" (with Restrict updates, only bypass actors can update `main`, so the Owner must be on it, and the machine account must never be); target the default branch; turn on Restrict creations, updates and deletions, Require a pull request (0 approvals is fine), and Block force pushes; add required status checks in step 7. **How the Owner merges:** with Restrict updates, every Owner merge is a bypass merge, and the merge page offers "Merge without waiting for requirements to be met (bypass rules)". Confirm every sop-guards check is green first, then tick it and merge. Required checks therefore bind everyone except the Owner; for the Owner, "green before merge" is discipline. The machine account, not on the list, is fully blocked (B3).
+> **EN:** Create a branch ruleset named `protect-main`: Enforcement **Active** (Evaluate only logs, the most common mistake); bypass list **only you**, mode "For pull requests only" (with Restrict updates, only bypass actors can update `main`, so the Owner must be on it, and the machine account must never be); target the default branch (**an empty target applies the ruleset to nothing**, which happened in the S4 trial; check that the list shows it Active with one target, and `bootstrap check` reports "no rule applies to main" if it's missing); turn on Restrict creations, updates and deletions, Require a pull request (0 approvals is fine), and Block force pushes; add required status checks in step 7. **How the Owner merges:** with Restrict updates, every Owner merge is a bypass merge, and the merge page offers "Merge without waiting for requirements to be met (bypass rules)". Confirm every sop-guards check is green first, then tick it and merge. Required checks therefore bind everyone except the Owner; for the Owner, "green before merge" is discipline. The machine account, not on the list, is fully blocked (B3).
 
 ## 6. `milestone/**` 的 ruleset / The ruleset for `milestone/**`
 

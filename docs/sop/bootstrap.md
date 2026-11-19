@@ -69,7 +69,7 @@ python3 scripts/sop/config.py
 ## 5. 閘門如何打開 / How the gate opens
 
 1. `bootstrap-project` 在 `sop/bootstrap` 分支寫入設定、查證結果，刪除僅範本檔案與關閉的模組，填寫 `AGENTS.md` 的專案段落。
-2. 全部通過時把 `ready` 設為 `true`，並開 PR 到 `main`。`ready: true` 時，B1–B7 每項都必須是 `passed`（附證據）或 `not_applicable`，否則 `sop-ready` 失敗。
+2. 先開**草稿** PR 到 `main`，讓 CI 跑一次（GitHub 只會列出跑過的檢查，Owner 才能設定 B4 的必要檢查）；B1–B7 都完成後執行 `finalize` 把 `ready` 設為 `true`，再把草稿轉成正式 PR。`ready: true` 時，B1–B7 每項都必須是 `passed`（附證據）或 `not_applicable`，否則 `sop-ready` 失敗。
 3. 只有 Owner 能合併 `main`（B3），所以**閘門最後一定經過 Owner 核准**。agent 自己無法把閘門打開。
 4. 合併後，`sop-ready` 在 `main` 上為綠，`plan-milestone` 才能開始第一個 milestone。
 
