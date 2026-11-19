@@ -32,7 +32,7 @@ argument-hint: "<ticket: issue number, URL or path>"
 
 - Verifier says FAIL, round 1: fix each listed problem in this same session, push, wait for green CI, and comment on what changed and where.
 - Round 2 goes to a fresh session, which reads only the ticket, the diff and the verdicts.
-- Still FAIL after round 2: stop and escalate to the Owner with the open problems and two or three options.
+- The harness file's "Fix rounds" sets how many rounds there are (default 2). Still FAIL after the last one: stop and escalate to the Owner with the open problems and two or three options.
 
 ## Don't
 

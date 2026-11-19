@@ -1,12 +1,12 @@
 ---
 name: setup
-description: Configure this repo for the sop-v2 skills. Explore it, ask two to four questions, and write docs/agents/harness.md, the file every other skill reads first. Run once per repo, and again whenever the answers change.
+description: Configure this repo for the pitaya skills. Explore it, ask two to four questions, and write docs/agents/harness.md, the file every other skill reads first. Run once per repo, and again whenever the answers change.
 disable-model-invocation: true
 ---
 
 # Setup
 
-Write `docs/agents/harness.md`: the short config every sop-v2 skill reads first. There is no gate. Other skills work without it, using safe defaults, so keep this quick.
+Write `docs/agents/harness.md`: the short config every pitaya skill reads first. There is no gate. Other skills work without it, using safe defaults, so keep this quick.
 
 ## 1. Explore before asking
 
@@ -27,7 +27,7 @@ Lead each question with your recommendation, so the user can accept it in a word
 1. **Owner and machine account.** Who merges `main`? Is there a separate machine account the agents act as? Recommend one if several agents will work in parallel: then every push, PR and comment can be traced to an agent by its GitHub account. "None" is a valid answer.
 2. **Where tickets live.** GitHub Issues labelled `ticket` (recommended when there's a GitHub remote) or `docs/tickets/<id>.md` files.
 3. **Test command.** Confirm one that actually runs here, as typed: if the test tool lives in a virtualenv, record that path (for example `.venv/bin/python -m pytest -q`). Otherwise ask for it. If nothing runs yet, record "none yet" and say that `/build` needs one.
-4. **Language, records and sensitive areas.** Which language documents are written in (PRs, issues, reports); whether to keep `docs/decisions.md` (recommended) and `docs/pitfalls.md`; which areas need a covering test before anyone changes them (money, permissions, migrations). "None" is fine.
+4. **Language, records and sensitive areas.** Which language documents are written in (PRs, issues, reports); whether to keep `docs/decisions.md` (recommended; add a `Pitfalls:` line only if they also want `docs/pitfalls.md`); which areas need a covering test before anyone changes them (money, permissions, migrations). "None" is fine.
 
 If an answer contradicts something you found (an account that doesn't exist, a failing test command), say what you found and ask again. Never fill in an answer yourself.
 
@@ -43,7 +43,7 @@ If an answer contradicts something you found (an account that doesn't exist, a f
    Read `docs/agents/harness.md` before planning, building or verifying work.
    ```
 
-4. Show the user the diff, then commit with the message `Configure sop-v2 skills`. Open a PR only if the user asks.
+4. Show the user the diff, then commit with the message `Configure pitaya skills`. Open a PR only if the user asks.
 
 ## 4. Recommend one guardrail
 
@@ -52,7 +52,7 @@ End by recommending the cheapest missing guardrail. It's a recommendation, not a
 - No CI runs the tests: recommend "CI runs the tests".
 - CI exists, but anyone (or any agent) can push to `main`: recommend "protect `main`".
 
-The recipes live in `docs/guardrails/` of the sop-v2 repo. Installed as a plugin, that's `../../docs/guardrails/README.md` relative to this file; if it isn't there, point the user to the sop-v2 repo instead. Once a guardrail is added, list it under "Guardrails" in `docs/agents/harness.md`.
+The recipes live in `docs/guardrails/` of the pitaya plugin's repo. Installed as a plugin, that's `../../docs/guardrails/README.md` relative to this file; if it isn't there, point the user to the plugin's repo instead. Once a guardrail is added, list it under "Guardrails" in `docs/agents/harness.md`.
 
 ## Don't
 

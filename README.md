@@ -10,7 +10,9 @@ A set of small, composable skills for developing with agents under human review:
 
 ## 安裝 / Install
 
-兩種方式，擇一即可。/ Pick one.
+Plugin 的名稱是 `pitaya`，安裝後 skill 顯示為 `/pitaya:setup`、`/pitaya:build` 等。兩種方式，擇一即可。
+
+The plugin is named `pitaya`; once installed, skills appear as `/pitaya:setup`, `/pitaya:build` and so on. Pick one route.
 
 **1. Plugin（自動更新）/ As a plugin (auto-updates)：** 在 Claude Code 中，把本 repo 加為 marketplace 再安裝。`<owner>` 換成本 repo 在 GitHub 上的擁有者。
 
@@ -21,7 +23,7 @@ In Claude Code, add this repo as a marketplace, then install. Replace `<owner>` 
 ```
 
 ```text
-/plugin install sop-v2@sop-v2
+/plugin install pitaya@sop-v2
 ```
 
 **2. 複製（可自行修改）/ By copying (yours to edit)：** 把需要的 `skills/<name>/` 目錄複製到你專案的 `.claude/skills/`。之後的更新要自己比對。

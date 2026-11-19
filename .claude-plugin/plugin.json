@@ -1,7 +1,7 @@
 {
-  "name": "sop-v2",
+  "name": "pitaya",
   "version": "3.0.0-dev.0",
-  "description": "Small, composable skills for developing with agents under human review: plan, build red-green, verify cold, report. Guardrails are opt-in recipes, not a gate.",
+  "description": "Small, composable skills for developing with agents under human review: set up a level, plan, build red-green, verify cold, report. Guardrails grow by level, not as a gate.",
   "author": {
     "name": "sop-v2 contributors"
   },

@@ -17,7 +17,7 @@ Verification is only worth something if it's independent. The verifier judges fr
 
 ## 2. Dispatch a fresh verifier
 
-Start **one new subagent** with a fresh context. If this session wrote the code, this step isn't optional: you can't verify your own work.
+Start **one new subagent** with a fresh context. If this session wrote the code, this step isn't optional: you can't verify your own work. If the harness file's "Verification" asks for a separate session, give the user the pointers below as a prompt for that session instead.
 
 Give it only pointers, not your opinions:
 
@@ -40,9 +40,9 @@ Tell it to:
 
 ## After the verdict
 
-- PASS: the Owner (or whoever the harness file says merges) decides. Don't merge.
+- PASS: whoever the harness file's "Autonomy" names merges. By default that's the Owner, so don't merge.
 - FAIL: the builder fixes it (`/build` explains the fix rounds). Each new round is verified by a new subagent.
-- FAIL in round 2: recommend escalating to the Owner.
+- FAIL in the last round the harness file's "Fix rounds" allows (default 2): recommend escalating to the Owner.
 
 ## Don't
 
