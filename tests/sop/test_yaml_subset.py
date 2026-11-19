@@ -110,6 +110,8 @@ def test_accepts(text, expected):
         ("a: !tag x\n", 1, "must be quoted"),
         ("a: {b: 1}\n", 1, "must be quoted"),
         ("a: [x, [y]]\n", 1, "nested"),
+        ("a:\n  - [x, y]\n", 2, "nested"),  # a flow list inside a block list
+        ("a:\n  - []\n", 2, "nested"),
         ("a: [x, {y: 1}]\n", 1, "nested"),
         ("a: [x,]\n", 1, "empty item"),
         ("a: [, x]\n", 1, "empty item"),

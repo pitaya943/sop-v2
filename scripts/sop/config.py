@@ -361,7 +361,11 @@ class _Parser:
                 self.lines[self.i] = _Line(item_indent, item, line.number)
                 result.append(self._parse_mapping(item_indent))
             else:
-                result.append(_parse_scalar(_strip_comment(item, line.number), line.number))
+                value = _strip_comment(item, line.number)
+                if value.startswith("["):
+                    # A list inside a list is not in the subset (dump_yaml can't write it).
+                    raise ConfigSyntaxError(line.number, "nested lists are not supported")
+                result.append(_parse_scalar(value, line.number))
                 self.i += 1
         return result
 

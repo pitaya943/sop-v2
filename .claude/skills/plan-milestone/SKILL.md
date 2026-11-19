@@ -10,7 +10,7 @@ description: "在 milestone 開始前，把該 milestone 切成 ticket、確認�
 1. 讀 `.sop/bootstrap.yml`：`ready` 不是 `true` 就停止，告訴 Owner 要先完成啟動流程。
 2. 依 `AGENTS.md` 的「GitHub 身分」確認登入帳號是 `bot.github`，並執行 `python3 scripts/sop/config.py --git-identity`。
 3. 讀 `docs/board.md`、`docs/milestones/README.md`、`docs/decisions.md` 的待決定事項、`docs/pitfalls.md`，以及 `.sop/config.yml` 的 `max_parallel`、`serial_resources`、`append_only_files`、`sensitive_areas`。
-4. 確認前一個 milestone 已合併進 `main`。還沒有就停止並告訴 Owner。
+4. 這不是第一個 milestone 時，確認前一個 milestone 已合併進 `main`；還沒有就停止並告訴 Owner。第一個 milestone 沒有前一個，跳過這一步。
 5. 依 `docs/milestones/README.md` 的計畫，為這個 milestone 建立或檢查每張 ticket 檔（樣板 `docs/tickets/_template.md`）：
    - 依賴的 ticket 是否都已 `merged`，或排在本 milestone 之內。
    - `allowed_paths` 是否符合 repo 現在的目錄結構；需要改唯讀路徑時，明確列出該檔案（不用萬用字元），並在計畫中說明。
@@ -28,7 +28,7 @@ description: "在 milestone 開始前，把該 milestone 切成 ticket、確認�
     - 從 `main` 開出 `milestone/Mx`，把以上變更直接推送到這個分支。
     - 在 issue 留言寫明 D 編號與 commit，然後關閉 issue。
 
-> **EN:** Stop if the gate is closed; confirm identity and run `--git-identity`. Read the board, the milestone plan, open decisions, pitfalls and the relevant config. Make sure the previous milestone is merged into `main`. Create or check each ticket from the template (dependencies, `allowed_paths` against the current tree with read-only paths listed exactly, `done_when` against the spec, `screens` filled in, blocking open decisions); split tickets with more than 20 conditions or touching three or more modules. Plan parallelism per `parallel.md` within `max_parallel`. Open a `plan-approval` issue asking the Owner to confirm the models. Wait for approval. Then record the decision and models, update tickets, add the milestone section and rows to the board, cut `milestone/Mx` from `main` and push these changes to it, comment the decision ID and commit, and close the issue.
+> **EN:** Stop if the gate is closed; confirm identity and run `--git-identity`. Read the board, the milestone plan, open decisions, pitfalls and the relevant config. Unless this is the first milestone, make sure the previous one is merged into `main`. Create or check each ticket from the template (dependencies, `allowed_paths` against the current tree with read-only paths listed exactly, `done_when` against the spec, `screens` filled in, blocking open decisions); split tickets with more than 20 conditions or touching three or more modules. Plan parallelism per `parallel.md` within `max_parallel`. Open a `plan-approval` issue asking the Owner to confirm the models. Wait for approval. Then record the decision and models, update tickets, add the milestone section and rows to the board, cut `milestone/Mx` from `main` and push these changes to it, comment the decision ID and commit, and close the issue.
 
 ## 輸出 / Output
 

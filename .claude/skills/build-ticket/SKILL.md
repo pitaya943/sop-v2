@@ -39,14 +39,14 @@ description: "實作一張 ticket：先讓完成條件的測試失敗，再實�
 
 ## 不要做 / Don't
 
-- 不要修改規格（`spec_paths`）或其他唯讀路徑。規格看起來有錯時用 `ask-owner`。
+- 不要修改規格（`spec_paths`）或其他唯讀路徑，除非 ticket 的 `allowed_paths` **明確列出**該路徑（不含萬用字元）。規格看起來有錯時用 `ask-owner`。
 - 不要跳過、標記預期失敗、刪除或放寬任何測試。
 - 不要讓測試永遠通過。測試必須真的呼叫產品程式並檢查結果。
 - 不要碰 `serial` 以外的序列化資源，也不要新增 ticket 沒有授權的資料模型變更。
 - 不要連線到共用或正式環境。
 - 不要合併自己的 PR。
 
-> **EN:** Don't edit the spec or other read-only paths (use `ask-owner`); don't skip, xfail, delete or loosen tests; don't write tests that always pass; don't touch unauthorized serialized resources or data-model changes; don't connect to shared or production environments; don't merge your own PR.
+> **EN:** Don't edit the spec or other read-only paths unless the ticket's `allowed_paths` names that exact path (otherwise use `ask-owner`); don't skip, xfail, delete or loosen tests; don't write tests that always pass; don't touch unauthorized serialized resources or data-model changes; don't connect to shared or production environments; don't merge your own PR.
 
 ## PR 說明要有 / The PR description includes
 
