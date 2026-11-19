@@ -18,6 +18,7 @@ Read what exists. Don't assume.
 - `docs/tickets/` or issues labelled `ticket`: where does planned work already live?
 - `AGENTS.md` and `CLAUDE.md`: is there already a pointer to the harness file?
 - Who you are on GitHub: `gh api user --jq .login`, or the GitHub tool's "get me" call. Don't guess.
+- If the skills were copied into `.claude/skills/`, run `git check-ignore -v .claude/skills/*/SKILL.md`. A broad rule such as `build/` hides the `build` skill from git; anchor it (`/build/`) and tell the user.
 
 ## 2. Ask, one question at a time
 
