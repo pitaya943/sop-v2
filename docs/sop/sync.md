@@ -22,7 +22,7 @@
 | --- | --- | --- | --- | --- |
 | **C1 設定值** | 帳號、語言、平行上限、唯讀路徑、序列化資源、模組開關 | `.sop/config.yml` | 不會 | 啟動時由 Owner；之後經 Owner 合併的 PR |
 | **C2 專案規則** | 專案自己的規則、技術棧說明、指令、目錄約定 | `AGENTS.md` 的專案段落、`docs/project/**` | 不會 | Owner |
-| **C3 擴充** | 專案專屬的 skill、額外的 CI 檢查、腳本 | `.claude/skills/project/**`、`.github/workflows/project/**`、`scripts/project/**` | 不會 | Owner；擴充本身也是唯讀路徑，Builder 不能改 |
+| **C3 擴充** | 專案專屬的 skill、額外的 CI 檢查、腳本 | `.claude/skills/project/**`、`.github/workflows/project-*.yml`、`scripts/project/**` | 不會 | Owner；擴充本身也是唯讀路徑，Builder 不能改 |
 | **C4 停用範本規則** | 關掉某一項範本檢查 | `overrides.disabled_guards`，每項附原因與決策編號 | 不會 | Owner；`sop-ready` 檢查每項都有決策紀錄 |
 | **C5 修改範本本身** | 改流程、角色、skill 的內容 | fork 範本，把 fork 設為 `template.source` | 會從 fork 同步 | fork 的維護者 |
 

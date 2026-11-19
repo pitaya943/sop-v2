@@ -1,0 +1,49 @@
+# Optional module claude_review (modules.claude_review). Template-owned;
+# bootstrap and sop-sync remove this file when the module is off.
+#
+# A collaborator mentions @claude in a pull request comment to ask Claude for
+# a review. It is ADVISORY: it never replaces the Verifier and is never a
+# merge condition (docs/sop/workflow.md). Needs the repository secret
+# ANTHROPIC_API_KEY (bootstrap check B6; docs/sop/setup.md step 10).
+name: module-claude-review
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+
+jobs:
+  detect:
+    # Only on pull requests, only when mentioned, and only for people with
+    # write access: on a public repo anyone can comment, and this job uses a secret.
+    if: >-
+      contains(github.event.comment.body, '@claude') &&
+      (github.event.issue.pull_request || github.event.pull_request) &&
+      contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)
+    runs-on: ubuntu-24.04
+    outputs:
+      project: ${{ steps.detect.outputs.project }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: detect
+        run: |
+          if [ -f .github/workflows/self-ci.yml ]; then echo "project=false" >> "$GITHUB_OUTPUT"; else echo "project=true" >> "$GITHUB_OUTPUT"; fi
+
+  claude-review:
+    needs: detect
+    if: needs.detect.outputs.project == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}

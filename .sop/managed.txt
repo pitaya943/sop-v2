@@ -21,6 +21,7 @@ scripts/sop/guards.py
 scripts/sop/compare_junit.py
 scripts/sop/bootstrap
 scripts/sop/sync
+scripts/sop/docs_lint.py  module:docs_lint
 
 # --- core: process docs and templates ---
 CLAUDE.md
@@ -43,5 +44,5 @@ docs/milestones/report-template.html
 
 # --- optional modules ---
 .claude/skills/learning/  module:learning
-.github/workflows/modules/claude-review.yml  module:claude_review
-.github/workflows/modules/docs-lint.yml  module:docs_lint
+.github/workflows/module-claude-review.yml  module:claude_review
+.github/workflows/module-docs-lint.yml  module:docs_lint

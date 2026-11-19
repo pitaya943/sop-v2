@@ -114,7 +114,7 @@ The bootstrap asks you to complete these settings (files can't carry them) and v
 | --- | --- | --- |
 | C1 設定值 Config | 帳號、語言、平行上限、模組開關等<br>Accounts, language, parallel cap, modules | `.sop/config.yml` |
 | C2 專案規則 Project rules | 技術棧、指令、專案規則<br>Stack, commands, project rules | `AGENTS.md` 的專案段落、`docs/project/`<br>Project section of `AGENTS.md`, `docs/project/` |
-| C3 擴充 Extensions | 專案專屬 skill、CI、腳本<br>Project skills, CI, scripts | `.claude/skills/project/`、`.github/workflows/project/`、`scripts/project/` |
+| C3 擴充 Extensions | 專案專屬 skill、CI、腳本<br>Project skills, CI, scripts | `.claude/skills/project/`、`.github/workflows/project-*.yml`、`scripts/project/` |
 | C4 停用範本檢查 Disable a guard | 關掉不需要的檢查，需附原因和決策紀錄<br>Turn off a guard, with a reason and a decision record | `.sop/config.yml` 的 `overrides.disabled_guards` |
 | C5 修改範本本身 Change the template | 流程、角色、skill 的內容<br>Process, roles, skill content | fork 本 repo，把 `template.source` 指向你的 fork<br>Fork this repo and point `template.source` at your fork |
 

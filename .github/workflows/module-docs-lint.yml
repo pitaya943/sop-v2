@@ -1,0 +1,37 @@
+# Optional module docs_lint (modules.docs_lint). Template-owned; bootstrap and
+# sop-sync remove this file when the module is off.
+#
+# Checks that every relative Markdown link and #anchor resolves. Advisory by
+# default: add "docs-lint" to main's required checks if the project wants it
+# to block merges (docs/sop/setup.md step 7).
+name: module-docs-lint
+
+on:
+  pull_request:
+  push:
+    branches: [main, "milestone/**"]
+
+permissions:
+  contents: read
+
+jobs:
+  detect:
+    runs-on: ubuntu-24.04
+    outputs:
+      project: ${{ steps.detect.outputs.project }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: detect
+        run: |
+          if [ -f .github/workflows/self-ci.yml ]; then echo "project=false" >> "$GITHUB_OUTPUT"; else echo "project=true" >> "$GITHUB_OUTPUT"; fi
+
+  docs-lint:
+    needs: detect
+    if: needs.detect.outputs.project == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - run: python3 scripts/sop/docs_lint.py
