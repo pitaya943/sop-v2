@@ -66,10 +66,12 @@ Ticket：docs/tickets/T-012.md
 
 | 需求 | 目前的做法（Claude Code on the web） |
 | --- | --- |
+| 確認 GitHub 登入帳號 | 查詢目前登入的使用者（GitHub MCP 的 `get_me`，或 `gh api user`），與 `bot.github` 比對 |
+| 設定 commit 作者 | `python3 scripts/sop/config.py --git-identity` |
 | 開 Builder / Verifier | 建立新的 cloud session，傳送第 3 節的 prompt |
 | 等待 CI | Builder 訂閱自己 PR 的活動 |
 | 得知子 session 結束 | 子 session 的結束或失敗事件；必要時查詢 session 狀態 |
 | Researcher | 同 session 的 subagent |
 | 找 Owner | 機器帳號開 `needs-owner` issue |
 
-> **EN:** The only part that changes with tool versions: today, Builders and Verifiers are new cloud sessions sent the fixed prompt; Builders subscribe to their PR for CI; the Chief learns of child completion from session events; the Researcher is a subagent; the Owner is reached through `needs-owner` issues.
+> **EN:** The only part that changes with tool versions: today, identity is checked by querying the signed-in user and comparing with `bot.github`, the commit author is set with `--git-identity`, Builders and Verifiers are new cloud sessions sent the fixed prompt; Builders subscribe to their PR for CI; the Chief learns of child completion from session events; the Researcher is a subagent; the Owner is reached through `needs-owner` issues.

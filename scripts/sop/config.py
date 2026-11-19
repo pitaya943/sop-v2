@@ -608,6 +608,11 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Validate .sop/config.yml against .sop/schema.json.")
     parser.add_argument("--config", type=Path, default=REPO_ROOT / ".sop" / "config.yml")
     parser.add_argument("--schema", type=Path, default=REPO_ROOT / ".sop" / "schema.json")
+    parser.add_argument(
+        "--git-identity",
+        action="store_true",
+        help="after validating, set this repo's git author to the machine account (bot.*)",
+    )
     args = parser.parse_args(argv)
     try:
         data = load_yaml_file(args.config)
@@ -621,6 +626,28 @@ def main(argv: list[str] | None = None) -> int:
         print(f"{len(violations)} problem(s) found.", file=sys.stderr)
         return 1
     print(f"{args.config}: OK")
+    if args.git_identity:
+        return set_git_identity(data)
+    return 0
+
+
+# GitHub's noreply domain; the address is "<user id>+<login>@" + this.
+NOREPLY_DOMAIN = "users.noreply.github.com"
+
+
+def set_git_identity(data: dict) -> int:
+    """Make the machine account the commit author in the current repository.
+
+    Every session runs this before its first commit, so commit-author never
+    sees a personal identity. Uses the noreply address, never a real email.
+    """
+    import subprocess
+
+    login = data["bot"]["github"]
+    email = f"{data['bot']['github_id']}+{login}" + "@" + NOREPLY_DOMAIN
+    for key, value in (("user.name", login), ("user.email", email)):
+        subprocess.run(["git", "config", "--local", key, value], check=True)
+    print(f"git author set to: {login} <{email}>")
     return 0
 
 

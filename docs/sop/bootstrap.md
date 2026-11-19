@@ -31,7 +31,7 @@
 | `sensitive_areas` | 沒有測試涵蓋就必須升級的領域 |
 | `modules.learning`、`modules.claude_review`、`modules.docs_lint` | 可選模組的開關 |
 | `template.source` | `sop-sync` 的來源（`owner/repo`） |
-| `overrides.disabled_guards` | 停用的範本檢查（見 [`ci-contract.md`](ci-contract.md#4-停用檢查--disabling-a-guard)） |
+| `overrides.disabled_guards` | 停用的範本檢查（見 [`ci-contract.md`](ci-contract.md#5-停用檢查--disabling-a-check)） |
 
 清單欄位可以是空清單 `[]`，但不可為 `null`。檢查格式：
 
@@ -59,7 +59,7 @@ python3 scripts/sop/config.py
 | B1 | 目前 session 的 GitHub 身分等於 `bot.github` | 查詢目前登入的使用者 |
 | B2 | 機器帳號是 collaborator，權限是 Write（不是 Admin） | repo collaborator API |
 | B3 | `main` 有 ruleset：機器帳號無法直接更新 | branch rules API；無法讀取時由 Owner 提供設定畫面截圖 |
-| B4 | `milestone/*` 有 ruleset：必須 PR、必須 CI 全綠 | 同上 |
+| B4 | `main` 的 ruleset 把 CI 的必要檢查設為必須通過（`milestone/*` 不設必要檢查，Chief 直接推送紀錄） | 同上 |
 | B5 | `scripts/sop/test` 已實作，能產生 JUnit XML | 實際執行 |
 | B6 | （`modules.claude_review` 開啟時）repo secret 已設定；關閉時為 `not_applicable` | secret 名稱清單 API（不讀值） |
 | B7 | 僅範本檔案（`.sop/template-only.txt`）已移除；關閉的模組已移除 | 檔案清單比對 |

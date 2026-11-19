@@ -30,9 +30,9 @@
 
 - 可以同時出現在多張平行 ticket 的 `allowed_paths`，但 ticket 必須同時在 `append_only` 宣告。
 - CI `append-only` 檢查 PR 對這些檔案的 diff **只有新增行**。
-- 合併衝突由 Chief 依序合併時解決，保留雙方的新增行。
+- 後合併的 ticket 在開 Verifier 前，先 merge 最新的 milestone 分支（`git merge origin/milestone/Mx`，不 rebase），解決衝突時保留雙方的新增行。
 
-> **EN:** Files listed in `append_only_files` may appear in several parallel tickets if each declares them in `append_only`. CI checks that the diff only adds lines; the Chief resolves merge conflicts by keeping both sides' additions.
+> **EN:** Files listed in `append_only_files` may appear in several parallel tickets if each declares them in `append_only`. CI checks that the diff only adds lines. The ticket merged later first merges the latest milestone branch (no rebase) before its Verifier starts, keeping both sides' additions.
 
 ## 4. Chief 的排程演算法 / The Chief's scheduling algorithm
 

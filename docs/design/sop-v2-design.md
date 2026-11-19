@@ -1,6 +1,6 @@
 # SOP v2 設計文件
 
-Chief of Staff 與 subagent 協作、平行開發的通用專案範本。草稿 v0.7，2026-11-19。
+Chief of Staff 與 subagent 協作、平行開發的通用專案範本。草稿 v0.8，2026-11-19。
 
 > **一句話：** 一個任何人都能拿來開新專案的範本。它定義「Chief 分派、Builder 實作、Verifier 獨立驗收、Owner 只做決策」的協作模式與平行開發規則，並用 CI 把角色之間的契約變成機器檢查。使用者在 GitHub 上按「Use this template」建立專案，再由一個 agent 引導的啟動流程逐項詢問、即時查證所有必要資訊；資訊不完整或查證不通過，就不能開始開發。範本本身不含任何個人或專案資訊。
 >
@@ -100,14 +100,19 @@ sop-v2 由兩個前身整理而來：一份以文件規範為主的單 session �
 | D14 | 測試依賴（S0） | **只用 pytest，鎖定版本**（`tests/sop/requirements.txt`） | 檢查程式本身仍只用標準函式庫；pytest 只在範本自己的測試中使用 |
 | D15 | 範本歷史中已有一筆含機器帳號 email 的 merge commit（S0 發現） | **接受，不改寫歷史；改以設定防止再發生**：機器帳號開啟 email 隱私與「封鎖會暴露 email 的推送」，Owner 檢查 `main` 的 ruleset 不讓機器帳號合併 | 該 email 永久留在範本 repo 的歷史中；「Use this template」建立的專案不帶歷史，所以不影響下游（第 16 節）。PR 內的 commit 由 self CI 檢查作者；網頁合併產生的 merge commit 在 CI 之後才建立，只能靠帳號設定防範 |
 | D16 | 範本內附文件的語言（S1） | **繁體中文本文，每節附 English 摘要**（與本設計文件相同） | 中文讀者與英文讀者都能使用；份量較大，兩種語言必須一起維護。專案產出的語言仍由 `doc_language` 決定 |
-| D17 | Ticket front matter 的清單寫法（S1） | **逐行寫 `- 項目`，空清單寫 `[]`**，不用 `[a, b]` | 與設定檔共用同一個 YAML 子集，parser 不擴充（第 9 節範例已更新） |
-| D18 | 看板 `docs/board.md` 的格式（S1） | **固定欄位的 Markdown 表格** | 單一檔案、人機皆可讀；S2 的 parser 依欄位解析，欄位變更即是格式變更 |
+| D17 | Ticket front matter 的清單寫法（S1） | ~~逐行寫 `- 項目`~~ **已由 D23 取代** | — |
+| D18 | 看板 `docs/board.md` 的格式（S1） | ~~固定欄位的 Markdown 表格（自訂欄位）~~ **已由 D24 取代** | — |
 | D19 | 學習模組的紀錄位置（S1） | **獨立檔案 `docs/learning.md`**，不在 `docs/decisions.md` 加欄位 | 核心檔案的格式不隨模組開關改變；關閉模組只需刪檔（第 13 節已更新） |
 | D20 | `AGENTS.md` 專案段落的標記（S1） | **`<!-- sop:project:begin -->` 與 `<!-- sop:project:end -->`**，各出現一次 | `sop-sync` 只更新標記以外的內容；標記一旦發布就不能改名 |
+| D21 | harness 標準的來源（S1） | **對齊參考專案的 harness**：角色、流程、CI 規則、skill 步驟、紀錄格式都以參考專案為準，只把與其專案主題相關的部分通用化或刪除（第 3 節） | 範本不另創 harness 邏輯；與參考專案不同的地方必須是「通用化」並在本文件說明 |
+| D22 | Chief 怎麼寫入紀錄（S1） | **Chief 直接推送到 `milestone/Mx`**（看板、ticket、決策、pitfalls、報告）；必要的 CI 檢查只設在 `main`，`milestone/*` 不設（參考專案 D-035、D-054）。CI 在推送到 `milestone/**` 與 `main` 時仍會執行 | 取代原本 B4「`milestone/*` 必須 PR、CI 全綠」。Ticket PR 合併進 milestone 的條件（CI 全綠、Verifier PASS、範圍內、唯讀路徑沒被改）由 Chief 確認；最後一道機器把關是 `main` 的必要檢查與 Owner 審查 |
+| D23 | Ticket front matter 的清單寫法（S1，取代 D17） | **單行的 `[a, b]` 與逐行清單都可以**（參考專案寫 `depends_on: [T-010]`）；YAML 子集的 parser 支援只含純量的單行清單 | 巢狀、空項目、`]` 後面還有文字都會被拒絕 |
+| D24 | 看板與報告的格式（S1，取代 D18） | **看板照參考專案：** 每個 milestone 一段（計畫 issue、順序、平行上限、各角色模型），下方一張表 `Ticket / Milestone / 標題 / 狀態 / PR / 修正輪數 / 備註`，各輪模型記在備註。**milestone 報告用 HTML**（`docs/milestones/report-template.html`） | S2 的看板 parser 依這張表解析 |
+| D25 | 唯讀路徑的例外與證據規則（S1） | **照參考專案：** ticket 的 `allowed_paths` **明確列出**（不含萬用字元）某個唯讀路徑時，才允許修改它（參考專案 D-031），取代 `readonly_override`。證據一律必須提供；ticket 用 `screens: true / false` 標示是否需要截圖，沒有這個欄位判為失敗（參考專案 D-040），取代 `evidence: cli / screens / none` | Ticket 少一個欄位；不會有「不用附證據」的 ticket |
 
 **為什麼從 Copier 改成 template + agent 啟動（D2、D7）：** Copier 要求使用者在本機安裝 Python 與 Copier、在終端機一次回答十幾題，而且只能檢查**格式**，無法檢查**事實**（機器帳號是否存在、權限是否正確）。對不熟悉的使用者，這是最容易出錯、也最難排查的一步。本範本預設使用者使用 Claude Code，所以引導者可以直接是 agent：逐題詢問、即時查證、當場指出修正方法。設計早已把「範本擁有的檔案」與「專案的設定值」分開，幾乎不需要模板渲染，所以這個改變成本很低。
 
-> **EN:** D1 replace v1; D2 (revised in v0.5) distribute as a GitHub template repository with an agent-guided bootstrap instead of Copier; D3 language is a required per-project choice; D4 the machine account is required and live-checked at bootstrap; D5 the learning module is optional and must be chosen; D6 P1 and P2; D7 (revised) template mode is on and "Use this template" is the only creation path, with P2 guaranteed by the gate rather than the creation tool; D8 Markdown docs; D9 MIT-0; D10 template-only development files are removed at bootstrap; D11 customization layers; D12 (S0) the config file is a restricted YAML subset parsed and written by our own stdlib code, keeping native null and comments while rejecting anything YAML versions read differently; D13 Python 3.11 minimum, CI on 3.11 and 3.13; D14 pytest as the only test dependency, pinned; D16 shipped template docs are Traditional Chinese with English summaries, like this document; D17 ticket front matter writes lists one item per line (`[]` when empty), sharing the config's YAML subset; D18 `docs/board.md` is a Markdown table with fixed columns; D19 the learning module writes to its own `docs/learning.md` rather than adding a column to the decision log; D20 the project section of `AGENTS.md` is delimited by `<!-- sop:project:begin -->` and `<!-- sop:project:end -->`. D15 a merge commit already in the template's history carries the machine account's email: accepted, history not rewritten; prevented from recurring by the account's email-privacy settings and a ruleset that keeps the machine account from merging (projects created from the template don't inherit the history; merge commits are created after CI, so only settings can prevent them). Why drop Copier: it needs a local Python install, asks everything in one terminal pass, and can validate format but not facts. An agent can ask one question at a time, check answers against GitHub live, and explain the fix. Because template-owned files and project values were already separated, almost no templating is needed.
+> **EN:** D1 replace v1; D2 (revised in v0.5) distribute as a GitHub template repository with an agent-guided bootstrap instead of Copier; D3 language is a required per-project choice; D4 the machine account is required and live-checked at bootstrap; D5 the learning module is optional and must be chosen; D6 P1 and P2; D7 (revised) template mode is on and "Use this template" is the only creation path, with P2 guaranteed by the gate rather than the creation tool; D8 Markdown docs; D9 MIT-0; D10 template-only development files are removed at bootstrap; D11 customization layers; D12 (S0) the config file is a restricted YAML subset parsed and written by our own stdlib code, keeping native null and comments while rejecting anything YAML versions read differently; D13 Python 3.11 minimum, CI on 3.11 and 3.13; D14 pytest as the only test dependency, pinned; D16 shipped template docs are Traditional Chinese with English summaries, like this document; D17 and D18 were superseded by D23 and D24; D19 the learning module writes to its own `docs/learning.md` rather than adding a column to the decision log; D20 the project section of `AGENTS.md` is delimited by `<!-- sop:project:begin -->` and `<!-- sop:project:end -->`; D21 the harness itself (roles, process, CI rules, skill steps, record formats) follows the reference project, with only its subject-specific parts generalized or dropped; D22 the Chief pushes its records directly to `milestone/Mx` and required CI checks are set only on `main` (replacing the old B4); D23 ticket lists may be one-line `[a, b]` or block lists; D24 the board follows the reference's per-milestone sections plus a `Ticket / Milestone / Title / State / PR / Fix rounds / Notes` table, and milestone reports are HTML; D25 a read-only path may be changed only when a ticket's `allowed_paths` names it exactly, and evidence is always required, with `screens: true / false` saying whether screenshots are needed. D15 a merge commit already in the template's history carries the machine account's email: accepted, history not rewritten; prevented from recurring by the account's email-privacy settings and a ruleset that keeps the machine account from merging (projects created from the template don't inherit the history; merge commits are created after CI, so only settings can prevent them). Why drop Copier: it needs a local Python install, asks everything in one terminal pass, and can validate format but not facts. An agent can ask one question at a time, check answers against GitHub live, and explain the fix. Because template-owned files and project values were already separated, almost no templating is needed.
 
 ## 5. 角色與權限
 
@@ -132,7 +137,7 @@ sop-v2 由兩個前身整理而來：一份以文件規範為主的單 session �
 | 只有機器帳號提交 | CI `commit-author` |
 | Verifier 獨立 | dispatch 規則：全新 session，prompt 只給 PR 編號與 ticket 路徑 |
 | 設定不完整時不能開工 | CI `sop-ready` 與 skill 開頭檢查（第 15 節） |
-| Chief 只在 PASS 後合併 ticket PR | milestone 分支的 ruleset 要求 CI 全綠；PASS 目前由流程保證（第 18 節） |
+| Chief 只在 CI 全綠且 PASS 後合併 ticket PR | Chief 確認四項條件（CI 全綠、Verifier PASS、範圍內、唯讀路徑沒被改）；最後由 `main` 的必要檢查與 Owner 審查把關（D22） |
 
 > **EN:** Five roles: Owner (human), Chief of Staff (one session per milestone), Builder (fresh session per ticket), Verifier (fresh session per PR per round, never sees the Builder's conversation), optional Researcher (read-only subagent). Bootstrap and template sync run as one-off Owner-started sessions whose PRs the Owner merges. Every "does not" maps to an enforcement point.
 
@@ -260,19 +265,15 @@ Ticket 檔是 Chief 與 Builder 之間唯一的契約，也是 CI 的輸入。�
 id: T-012                    # 與分支 ticket/T-012 對應（CI branch-ticket）
 title: 一句話
 milestone: M2
-depends_on:                  # 排程（清單逐行寫，空清單寫 []；D17）
-  - T-010
+depends_on: [T-010]          # 排程（D23）
 allowed_paths:               # CI path-scope；排程時判斷重疊
   - "src/billing/**"
   - "tests/billing/**"
   - "docs/evidence/T-012/**"
 append_only:                 # 選填；須同時列在 allowed_paths，且在專案的 append_only 清單內
   - tests/implemented.txt
-readonly_override:           # 選填；允許改動預設唯讀路徑，須 Owner 在計畫中核准
-  - .github/workflows/ci.yml
-serial:                      # 選填；序列化資源
-  - db-schema
-evidence: cli                # cli | screens | none；CI evidence 依此判定
+serial: [db-schema]          # 選填；序列化資源
+screens: false               # 是否需要截圖；沒有這個欄位時 CI evidence 判為失敗（D25）
 done_when:                   # CI done-when：這些測試 ID 必須在 JUnit 結果中存在且通過
   - "tests/billing/test_invoice.py::test_rounding"
 status: todo                 # 只由 Chief 修改（實際狀態以 board.md 為準）
@@ -294,10 +295,10 @@ status: todo                 # 只由 Chief 修改（實際狀態以 board.md �
 | `sop-ready` | 中立 | 啟動閘門：設定符合 schema、啟動已核准、僅範本檔案已移除（第 15 節） | `.sop/*`、檔案清單 |
 | `branch-ticket` | 中立 | 目標是 `milestone/*` 的 PR，來源分支必須是 `ticket/T-xxx`，且目標分支上有對應的 ticket 檔 | 分支名、檔案 |
 | `path-scope` | 中立 | 每個變更檔案都符合 `allowed_paths` | `git diff --name-only` |
-| `readonly-paths` | 中立 | 不得修改 `AGENTS.md`、`.sop/**`、`docs/sop/**`、`.claude/**`、`.github/**`、`docs/board.md`、`docs/decisions.md` 與專案設定的規格路徑；`readonly_override` 例外；啟動 PR 與 `sop-sync` PR 例外（只能改各自允許的路徑） | diff、ticket |
+| `readonly-paths` | 中立 | 不得修改 `AGENTS.md`、`.sop/**`、`docs/sop/**`、`.claude/**`、`.github/**`、`docs/board.md`、`docs/decisions.md` 與專案設定的規格路徑；例外是 ticket 的 `allowed_paths` 明確列出（不含萬用字元）的路徑（D25）；只檢查進入 `milestone/*` 的 PR（Chief 直接推送的紀錄不經過 PR，D22）；啟動 PR 與 `sop-sync` PR 只能改各自允許的路徑 | diff、ticket |
 | `append-only` | 中立 | `append_only` 檔案的 diff 只有新增行 | `git diff` |
 | `serial-resource` | 中立 | 宣告的資源在清單內，且沒有其他進行中的 ticket 宣告同一項 | ticket、`board.md` |
-| `evidence` | 中立 | PR 說明的「證據」一節有 code block 或連到 `docs/evidence/T-xxx/`；`evidence: screens` 時至少一張圖 | PR body、檔案 |
+| `evidence` | 中立 | PR 說明的「證據」一節有 code block 或連到 `docs/evidence/T-xxx/`；ticket 為 `screens: true` 時至少一張圖；ticket 沒有 `screens` 欄位判為失敗（D25） | PR body、檔案 |
 | `commit-author` | 中立 | 每個 commit 的 GitHub 作者都是專案設定的機器帳號 | GitHub API、`.sop/config.yml` |
 | `tests` | 介面 | 執行 `scripts/sop/test`，必須產生 `build/sop/junit.xml` | 專案實作 |
 | `no-weakened-tests` | 介面 | 目標分支上通過的每個測試 ID，在 PR 上都被收集且通過；沒有 XML 判為失敗 | 兩份 JUnit XML |
@@ -507,7 +508,7 @@ P2 用三層來保證。每一層防的情況不同，缺一層就有漏洞：
 | B1 | 目前 session 的 GitHub 身分等於 `bot.github` | 查詢目前登入的使用者 |
 | B2 | 機器帳號是 collaborator，權限是 Write（不是 Admin） | repo collaborator API |
 | B3 | `main` 有 ruleset：機器帳號無法直接更新 | branch rules API；無法讀取時由 Owner 提供設定畫面截圖 |
-| B4 | `milestone/*` 有 ruleset：必須 PR、必須 CI 全綠 | 同上 |
+| B4 | `main` 的 ruleset 把 CI 的必要檢查設為必須通過（D22） | 同上 |
 | B5 | `scripts/sop/test` 已實作，能產生 JUnit XML | 實際執行 |
 | B6 | （啟用 review 模組時）repo secret 已設定 | secret 名稱清單 API（不讀值） |
 | B7 | 僅範本檔案已移除；關閉的模組已移除 | 檔案清單比對 |
@@ -563,7 +564,7 @@ sop-v2/
   docs/learning.md                # 學習模組開啟時才有（D19）
   docs/project/                   # 專案自己的規則與說明（C2，專案擁有）
   docs/tickets/_template.md
-  docs/milestones/README.md  docs/milestones/report-template.md
+  docs/milestones/README.md  docs/milestones/report-template.html
   .claude/skills/project/         # 專案專屬 skill（C3，專案擁有）
   .github/workflows/project/      # 專案額外的 CI（C3，專案擁有）
   scripts/project/                # 專案的腳本（C3，專案擁有）

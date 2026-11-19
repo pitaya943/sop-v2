@@ -12,7 +12,7 @@ checks:
     evidence: "fictional: main ruleset restricts updates"
   B4:
     status: passed
-    evidence: "fictional: milestone ruleset requires PR and CI"
+    evidence: "fictional: main ruleset requires the CI checks"
   B5:
     status: passed
     evidence: "fictional: scripts/sop/test wrote build/sop/junit.xml"
