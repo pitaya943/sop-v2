@@ -61,7 +61,7 @@ python3 scripts/sop/config.py
 | B3 | `main` 有 ruleset：機器帳號無法直接更新 | branch rules API；無法讀取時由 Owner 提供設定畫面截圖 |
 | B4 | `main` 的 ruleset 把 CI 的必要檢查設為必須通過（`milestone/*` 不設必要檢查，Chief 直接推送紀錄） | 同上 |
 | B5 | `scripts/sop/test` 已實作，能產生 JUnit XML | 實際執行 |
-| B6 | （`modules.claude_review` 開啟時）repo secret 已設定；關閉時為 `not_applicable` | secret 名稱清單 API（不讀值） |
+| B6 | （`modules.claude_review` 開啟時）repo secret `ANTHROPIC_API_KEY` 已設定；關閉時為 `not_applicable` | secret 名稱清單 API（不讀值）；機器帳號讀不到時由 Owner 提供截圖 |
 | B7 | 僅範本檔案（`.sop/template-only.txt`）已移除；關閉的模組已移除 | 檔案清單比對 |
 
 > **EN:** (How to set each one up: `setup.md`.) B1–B7 check GitHub settings and the working tree, each recorded in `.sop/bootstrap.yml` with evidence and a status of pending, passed, failed or not_applicable.

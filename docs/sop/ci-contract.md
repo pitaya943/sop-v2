@@ -32,9 +32,9 @@
 
 **Milestone PR**（`milestone/Mx → main`）另外檢查：該 milestone 每張 ticket 的 `done_when` 都在 JUnit 結果中存在且通過。
 
-專案自己的檢查（例如 lint、資料庫 migration 的範圍、使用者可見字串）放在 `.github/workflows/project/`（客製化層 C3）。
+專案自己的檢查（例如 lint、資料庫 migration 的範圍、使用者可見字串）放在 `.github/workflows/project-*.yml`（客製化層 C3）。
 
-> **EN:** Stack-neutral: `sop-ready`, `branch-ticket` (fail-closed for every check), `readonly-paths`, `path-scope`, `append-only`, `serial-resource`, `evidence` (always required; screenshots when `screens: true`; a missing `screens` field fails), `commit-author` (GitHub `author.login`, merge commits included, emails not compared). Interface: `tests`, `no-weakened-tests` (result comparison; renames count as disappearance), `done-when`. Milestone PRs also check every ticket's `done_when`. Project-specific checks go under `.github/workflows/project/` (layer C3).
+> **EN:** Stack-neutral: `sop-ready`, `branch-ticket` (fail-closed for every check), `readonly-paths`, `path-scope`, `append-only`, `serial-resource`, `evidence` (always required; screenshots when `screens: true`; a missing `screens` field fails), `commit-author` (GitHub `author.login`, merge commits included, emails not compared). Interface: `tests`, `no-weakened-tests` (result comparison; renames count as disappearance), `done-when`. Milestone PRs also check every ticket's `done_when`. Project-specific checks go under `.github/workflows/project-*.yml` (layer C3).
 
 ## 3. 唯讀路徑 / Read-only paths
 

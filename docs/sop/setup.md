@@ -121,6 +121,7 @@ done-when
 
 - 建議勾選 **Require branches to be up to date before merging**：PR 必須包含最新的 `main` 並重新通過 CI，避免兩個各自通過的 PR 合併後才出錯。
 - 停用的檢查（`overrides.disabled_guards`）不用從清單移除：它的 job 會回報「已停用」並通過。
+- 開啟 `modules.docs_lint` 時，想讓文件連結檢查也擋住合併，可以再加入 `docs-lint`。
 - 名稱改了或 workflow 被刪除時，PR 會一直等一個不會出現的檢查。這時回到 ruleset 移除或修改那一項。
 
 > **EN:** GitHub lists only checks that ran in the last 7 days, so add them after `sop-guards` has run once (the bootstrap PR triggers it). In `protect-main` → Require status checks → Add checks, add the eleven names above with source **GitHub Actions** (so no other app can impersonate them). Turn on "Require branches to be up to date". Disabled checks stay listed; their job reports "disabled" and passes. If a name changes or the workflow is removed, PRs wait forever; fix the list in the ruleset.
@@ -140,9 +141,9 @@ done-when
 
 ## 10. 模組需要的 secret / Module secrets
 
-只有開啟需要 secret 的模組（例如 `modules.claude_review`）時才需要：**Settings → Secrets and variables → Actions → New repository secret**，名稱依該模組的說明。`bootstrap-project` 只檢查名稱存在（B6），不會讀取值。
+只有開啟 `modules.claude_review` 時才需要：**Settings → Secrets and variables → Actions → New repository secret**，名稱是 `ANTHROPIC_API_KEY`，值是 Anthropic 的 API key。之後在 PR 留言提及 `@claude` 就會請 Claude 審查；只有 collaborator 的留言會觸發。這個審查只是參考，**不取代 Verifier，也不是合併的條件**。`bootstrap-project` 只檢查名稱存在（B6），不會讀取值。
 
-> **EN:** Only for modules that need one (e.g. `modules.claude_review`): add a repository secret under Settings → Secrets and variables → Actions, named as the module documents. Bootstrap checks only that the name exists (B6), never the value.
+> **EN:** Only with `modules.claude_review` on: add the repository secret `ANTHROPIC_API_KEY` (an Anthropic API key) under Settings → Secrets and variables → Actions. Mentioning `@claude` in a PR comment then asks Claude for a review; only collaborators' comments trigger it. The review is advisory: it never replaces the Verifier and is never a merge condition. Bootstrap checks only that the name exists (B6), never the value.
 
 ## 11. 疑難排解 / Troubleshooting
 
