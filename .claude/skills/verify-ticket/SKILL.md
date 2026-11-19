@@ -1,78 +1,75 @@
 ---
 name: verify-ticket
-description: "Verifier: independently re-run and check one ticket PR, spot-check tests by mutation, and post a PASS or FAIL verdict with evidence. Use when dispatched as a Verifier with a PR number and ticket path."
+description: "驗證一個 ticket PR：從乾淨的 checkout 重跑、逐項檢查，判定 PASS 或 FAIL 並寫成 PR 留言。只有 Verifier 使用。/ Verify one ticket PR from a clean checkout and post PASS or FAIL. Verifier only."
 ---
 
-# verify-ticket
+# 驗證一個 ticket PR / Verify a ticket PR
 
-Verifier 用這個 skill 獨立驗收一個 ticket PR。你的價值在於**不知道 Builder 怎麼想**（[`docs/sop/dispatch.md`](../../../docs/sop/dispatch.md#2-verifier-為什麼一定是獨立-session--why-the-verifier-is-always-a-separate-session)）。
+你看不到 Builder 的對話，這是刻意的。只根據 ticket 檔、規格、diff 與你自己執行的結果判斷。Builder 在 PR 說明裡的說法不是證據。
 
-> **EN:** The Verifier uses this skill to judge one ticket PR independently. Your value is not knowing how the Builder thought.
+> **EN:** You can't see the Builder's conversation, on purpose. Judge only from the ticket, the spec, the diff and what you run yourself. Claims in the PR description are not evidence.
 
-## 0. 閘門與獨立性 / Gate and independence
+## 開始前 / Before you start
 
-1. 讀 `.sop/bootstrap.yml`。`ready` 不是 `true` 就停止。
-2. 讀 `.sop/config.yml` 的 `doc_language` 與 `sensitive_areas`。
-3. **不要**讀 Builder 的對話或 session 紀錄。PR 說明裡的說法不算證據，你要自己重跑。
-4. 你**不修**產品程式，也不合併。
+1. 讀 `.sop/bootstrap.yml`：`ready` 不是 `true` 就停止。
+2. 依 `AGENTS.md` 的「GitHub 身分」確認登入帳號是 `bot.github`，並執行 `python3 scripts/sop/config.py --git-identity`。
+3. 讀 `.sop/config.yml` 的 `doc_language` 與 `sensitive_areas`。
 
-> **EN:** Stop if the gate is closed. Read `doc_language` and `sensitive_areas`. Never read the Builder's session; claims in the PR description are not evidence. Never fix product code or merge.
+> **EN:** Stop if the gate is closed. Confirm the machine-account identity and run `--git-identity`. Read `doc_language` and `sensitive_areas`.
 
-## 1. 乾淨重跑 / Clean re-run
+## 檢查表 / Checklist
 
-1. 在乾淨的環境 checkout PR 的 head commit（記下 SHA）。
-2. 執行 `scripts/sop/test`，保存完整輸出。
-3. 確認 `build/sop/junit.xml` 存在。
+每一項寫出「通過」或「不通過」，並附證據：你自己執行的指令與輸出、檔案與行號；有畫面的功能要你自己操作並截圖，存到 `docs/evidence/<ticket 編號>/verify/`（把這些截圖提交到 PR 分支是你**唯一**可以推送的內容）。沒有證據的項目算不通過。Builder 提供的證據要重做一次，不能直接引用。
 
-> **EN:** Check out the PR's head commit in a clean environment (record the SHA), run `scripts/sop/test`, keep the output, and confirm the JUnit XML exists.
+1. **乾淨重跑。** 從乾淨的 checkout 安裝、準備環境、執行 `scripts/sop/test`。結果與 CI 一致。
+2. **完成條件。** ticket 的每一項 `done_when` 都在 JUnit 結果中被收集並通過；數量與 ticket 寫的相同。
+3. **唯讀路徑沒被動。** 規格與其他唯讀路徑沒有變更（`allowed_paths` 明確列出的除外）。
+4. **範圍。** 每個變更的檔案都在 `allowed_paths` 內。
+5. **測試沒被弱化。** 沒有跳過或預期失敗的標記；沒有被刪除或放寬的斷言。
+6. **測試是真的。** 逐一讀測試：真的呼叫產品程式；真的檢查結果；「沒有變動」比對的是實際的狀態。
+7. **變異抽查。** 挑三項完成條件（優先挑 `sensitive_areas`、金額、權限、狀態轉移），各自在本地故意改壞對應的產品程式，確認對應的測試會失敗。做完還原，不要推送。
+8. **錯誤路徑。** 抽查錯誤路徑的測試：結果類別、完整錯誤訊息、狀態沒有變動，三項都有斷言。
+9. **繞過介面。** 直接對公開介面送出不合法的輸入（缺欄位、超出範圍、沒有權限的資料），確認被拒絕。
+10. **規則本身。** 讀規格的文字，想兩個測試沒列出的邊界情況，實際試。結果不合規格時是 FAIL；規格沒有說清楚時不是 FAIL，寫進「規格問題」。
+11. **不可違反的規則。** `AGENTS.md`「不可違反」的每一條。
 
-## 2. 逐項檢查 / Item by item
+> **EN:** Mark each item pass or fail with your own evidence; screenshots go under `docs/evidence/<ticket>/verify/`, the only thing you may push. No evidence means fail; redo the Builder's evidence yourself. (1) Clean re-run matching CI. (2) Every `done_when` ID collected and passing. (3) Read-only paths untouched. (4) In scope. (5) No weakened tests. (6) Tests are real. (7) Mutate three conditions (prefer sensitive areas, money, permissions, state transitions), confirm the tests fail, revert. (8) Error-path tests assert outcome, message and no state change. (9) Bypass the interface with invalid input and confirm rejection. (10) Try two unlisted edge cases against the spec text; unclear spec goes under "spec issues", not FAIL. (11) Every never-rule in `AGENTS.md`.
 
-對 ticket 的每一項 `done_when`：
+## 判定 / Verdict
 
-- 測試 ID 存在於 JUnit 結果中，而且通過。
-- 讀測試本身：它真的檢查了「完成條件」描述的行為，而不是只跑過程式碼。
+- 全部通過：**PASS**。
+- 任何一項不通過：**FAIL**，列出每個問題的位置、重現方式、預期與實際。**不要提供修正的程式碼。**
 
-另外檢查：
+> **EN:** PASS only if everything passes. Otherwise FAIL, listing location, reproduction, expected and actual for each problem. Don't provide fix code.
 
-- 變更的檔案都在 `allowed_paths` 內；沒有改唯讀路徑（除非 ticket 有 `readonly_override`）。
-- 沒有刪除、跳過或放寬既有測試。
-- PR 的證據一節有「先紅」與「全綠」的輸出，或連到 `docs/evidence/T-xxx/`。
-- 觸及 `sensitive_areas` 的變更有測試涵蓋。
+## 輸出 / Output
 
-> **EN:** For each `done_when` item, confirm the test ID exists and passes, and read the test to make sure it checks the described behaviour. Also check scope, read-only paths, weakened tests, the evidence section, and coverage of sensitive areas.
-
-## 3. 變異抽查 / Mutation spot-check
-
-至少挑一項 `done_when`：故意改壞對應的產品程式（例如反轉一個條件、改一個常數），重跑測試，確認對應的測試**會失敗**。然後還原。
-
-測試在程式被改壞後仍然通過，就是「造假的測試」，判定 FAIL。
-
-> **EN:** For at least one `done_when` item, deliberately break the product code (flip a condition, change a constant), re-run, and confirm the matching test fails; then revert. A test that still passes is a fake test: FAIL.
-
-## 4. 判定 / Verdict
-
-在 PR 留下一則判定留言，語言用 `doc_language`：
+一則 PR 留言，用 `doc_language`：
 
 ```text
-判定：PASS | FAIL
-Head SHA：<sha>
-模型：<名稱與版本，從 session 設定取得；取不到寫「無法取得 / unavailable」>
+## 驗證結果：PASS / FAIL
 
-完成條件：
-- [x] <test id>：<說明>
-- [ ] <test id>：<為什麼不通過>
+模型：（名稱與版本，從 session 的實際設定取得）
+輪次：第 N 輪
+Head commit：（SHA）
 
-變異抽查：<改了什麼、哪個測試失敗了>
-其他檢查：範圍 / 唯讀路徑 / 測試弱化 / 證據 / 敏感領域
-證據：<指令與輸出，或連結>
-FAIL 的理由（逐項，可直接照著修）：
-1. ...
+| # | 檢查 | 結果 | 證據 |
+| --- | --- | --- | --- |
+
+## 問題（FAIL 時）
+
+## 規格問題（有的話）
+
+## 想加入 docs/pitfalls.md 的提議（有的話）
 ```
 
-- **PASS：** 所有項目都通過，變異抽查有抓到。
-- **FAIL：** 任何一項不通過。理由要具體到 Builder 可以直接照著修。
+> **EN:** One PR comment in `doc_language`: result, model, round, head commit, the checklist table, then problems, spec issues and pitfall proposals.
 
-留言後結束。狀態由 Chief 更新。
+## 不要做 / Don't
 
-> **EN:** Post one verdict comment in `doc_language` with the head SHA, your model, the `done_when` checklist, the mutation result, the other checks, evidence, and, on FAIL, concrete numbered reasons. PASS only if everything passes and the mutation was caught. Then end; the Chief updates the board.
+- 不要修改產品程式或測試。
+- 不要憑印象填寫模型名稱；取不到時寫「無法取得 / unavailable」並說明原因。
+- 不要因為 CI 是綠的就判定 PASS。
+- 不要合併 PR。
+
+> **EN:** Don't change product code or tests; don't guess the model name; don't PASS because CI is green; don't merge.

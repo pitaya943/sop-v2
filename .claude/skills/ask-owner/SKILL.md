@@ -1,53 +1,47 @@
 ---
 name: ask-owner
-description: "Any role: escalate a decision to the Owner by opening a needs-owner issue with options, consequences and a recommendation, without deciding or pre-implementing. Use whenever AGENTS.md says to stop."
+description: "遇到規格不清楚、需要未授權的變更、修正兩輪失敗、或動到沒有測試涵蓋的敏感領域時，開 issue 請 Owner 決定。任何角色都可使用。/ Escalate a decision to the Owner through a needs-owner issue. Any role."
 ---
 
-# ask-owner
+# 請 Owner 決定 / Ask the Owner
 
-任何角色遇到 [`AGENTS.md`](../../../AGENTS.md) 第 3 節「什麼時候停下來」的情況時，用這個 skill 找 Owner。唯一的管道是 GitHub issue。
+## 什麼時候用 / When
 
-> **EN:** Any role uses this skill when `AGENTS.md` section 3 says to stop. The only channel is a GitHub issue.
+`AGENTS.md`「什麼時候停下來找 Owner」的四種情況。其他情況不要用；自己能從規格讀出答案的事不要問。
 
-## 0. 閘門 / Gate
+> **EN:** Only for the four situations in `AGENTS.md`. Don't ask what the spec already answers.
 
-讀 `.sop/config.yml`，取得 `owner.github` 與 `doc_language`。
+## 步驟 / Steps
 
-這個 skill 也用於「啟動閘門未開」的情況，所以 `.sop/bootstrap.yml` 的 `ready` 不是 `true` 時**仍然可以**使用；若設定本身無效、讀不到 `owner.github`，就直接在對話中告訴使用者，不開 issue。
+1. 停止這張 ticket 上會受答案影響的工作。已完成且不受影響的部分先提交。
+2. 找出確切的出處：規格的段落、檔案與行號、互相矛盾的兩段文字。
+3. 想出兩到三個選項。每個選項寫清楚：做法、對使用者的後果、要改哪些測試或檔案、之後反悔的成本。
+4. 選一個建議，寫出理由。**不要替 Owner 決定**，也不要先照建議實作。
+5. 先搜尋開著的 `needs-owner` issue，同一個問題已經有 issue 就在那裡補充。否則用 `.github/ISSUE_TEMPLATE/needs-owner.md` 開 issue，用 `doc_language`，指派給 `owner.github`。
+6. Builder 與 Verifier：把 issue 連結回報給 Chief，然後結束。Chief：把 ticket 標為 `escalated`，把依賴它的標為 `blocked`，繼續其他 ticket。
 
-> **EN:** Read `owner.github` and `doc_language` from `.sop/config.yml`. This skill also reports a closed gate, so it runs even when `ready` isn't `true`; if the config is invalid and `owner.github` is unreadable, tell the user in the conversation instead.
+> **EN:** (1) Stop work the answer affects; commit unaffected finished work. (2) Cite the exact source: spec section, file and line, the two contradicting passages. (3) Two or three options, each with approach, user-facing consequence, tests or files to change, and reversal cost. (4) Recommend one with reasons; never decide or pre-implement. (5) Add to an existing open `needs-owner` issue, or open one from the template in `doc_language`, assigned to `owner.github`. (6) Builders and Verifiers report the link to the Chief and end; the Chief marks the ticket `escalated`, dependants `blocked`, and continues.
 
-## 1. 先查重複 / Check for duplicates
+## 好問題的樣子 / A good question
 
-搜尋開著的 `needs-owner` issue。同一個問題已經有 issue，就在那個 issue 補充新資訊，不要重開。
+> **問題**：停用一個帳號時，它建立的資料要一起隱藏嗎？
+> **出處**：規格〈帳號〉第 4 條與〈資料保存〉第 2 條互相矛盾；`docs/tickets/T-012.md` 完成條件 3
+> **選項 A（建議）**：資料保留且可見，只標示建立者已停用。不需改既有測試。反悔成本低。
+> **選項 B**：資料一起隱藏。要新增兩個測試，並影響〈搜尋〉的結果。
 
-> **EN:** Search open `needs-owner` issues and add to an existing one rather than opening a duplicate.
+> **EN:** State the question in one line, cite the exact source, and give options with their effect on tests and other rules, marking the recommended one.
 
-## 2. 開 issue / Open the issue
+## Owner 回覆之後（Chief）/ After the Owner answers (Chief)
 
-使用 `.github/ISSUE_TEMPLATE/needs-owner.md`，加上 `needs-owner` 標籤，指派給 `owner.github`，語言用 `doc_language`。內容：
+1. 在 `docs/decisions.md` 新增一列。
+2. 回覆改變規格時，在同一個 commit 修改規格與受影響 ticket 的完成條件。
+3. 把 ticket 改回 `todo` 或 `building`，解除 `blocked`。
+4. 推送後在 issue 留言寫明記錄在哪個 D 編號與 commit，然後關閉 issue。
 
-1. **卡在哪裡：** 哪張 ticket、哪一步、哪條規則讓你停下來。
-2. **已經試過什麼：** 讀了哪些檔案、得到什麼結論。
-3. **選項：** 兩到三個。每個選項寫出：
-   - 會發生什麼；
-   - 反悔的成本（之後要改回來有多難）；
-   - 對其他 ticket 的影響。
-4. **建議：** 標出你建議哪一個，以及理由。
-5. **等待期間：** 哪些工作會停住，哪些可以繼續。
+> **EN:** Record a decision row; if the spec changes, update it and the affected tickets in the same commit; move the ticket back to `todo` or `building` and unblock dependants; push, comment the decision ID and commit on the issue, and close it.
 
-> **EN:** Use the needs-owner issue template, label `needs-owner`, assign `owner.github`, write in `doc_language`. Include: where you're stuck, what you tried, two or three options each with consequences, reversal cost and impact on other tickets, a marked recommendation with reasons, and what pauses meanwhile.
+## 這個 skill 在閘門未開時也能用 / Works with the gate closed
 
-## 3. 不要做的事 / Don't
+啟動閘門未開（`.sop/bootstrap.yml` 的 `ready` 不是 `true`）也是要告訴 Owner 的事，所以這個 skill 不因閘門未開而停止。設定本身無效、讀不到 `owner.github` 時，直接在對話中告訴使用者，不開 issue。
 
-- **不替 Owner 決定。** 即使你很確定，也只寫成「建議」。
-- **不先照建議實作。** 等 Owner 回覆。
-- 不在 issue 寫入任何個人資料；人一律用角色稱呼。
-
-> **EN:** Never decide for the Owner, never implement the recommendation in advance, and refer to people by role only.
-
-## 4. 結束 / Finish
-
-回報 issue 連結，然後結束目前的 session。Chief 會把 ticket 設為 `escalated`，依賴它的 ticket 設為 `blocked`；Owner 回覆後，由 Chief 把決定寫進 `docs/decisions.md`。
-
-> **EN:** Report the issue link and end the session. The Chief marks the ticket `escalated` (and dependants `blocked`) and records the Owner's answer in `docs/decisions.md`.
+> **EN:** A closed bootstrap gate is itself something to report, so this skill runs anyway. If the config is invalid and `owner.github` can't be read, tell the user in the conversation instead of opening an issue.
