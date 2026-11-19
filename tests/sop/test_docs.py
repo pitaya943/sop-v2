@@ -122,9 +122,16 @@ def github_slug(heading: str) -> str:
 
 
 def planned(rel: str) -> bool:
-    """True if a missing link target is a template path due in a later stage."""
+    """True if a missing link target is a template path due in a later stage.
+
+    Exempt only an exact managed entry, or a path under a managed directory
+    that does not exist yet. A missing file inside an existing managed
+    directory (e.g. docs/sop/typo.md) is a broken link, not a plan.
+    """
     for entry in guards.read_path_list(SOP / "managed.txt"):
-        if rel == entry.rstrip("/") or (entry.endswith("/") and rel.startswith(entry)):
+        if rel == entry.rstrip("/"):
+            return True
+        if entry.endswith("/") and rel.startswith(entry) and not (REPO_ROOT / entry).exists():
             return True
     return False
 
@@ -147,6 +154,12 @@ def test_relative_links_resolve(doc):
             if anchor not in slugs:
                 problems.append(f"{target}: no heading with anchor #{anchor}")
     assert problems == []
+
+
+def test_planned_does_not_hide_typos_in_existing_dirs():
+    """docs/sop/ already exists, so a missing file inside it is a typo, not a plan."""
+    assert not planned("docs/sop/typo.md")
+    assert planned("docs/tickets/_template.md")  # exact managed entry
 
 
 def test_slug_matches_github_style():
