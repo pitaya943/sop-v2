@@ -49,13 +49,13 @@
 例外：
 
 - ticket 的 `allowed_paths` **明確列出**（不含萬用字元）的路徑，由 Owner 在計畫核准時同意。
-- 啟動 PR（`sop/bootstrap` 分支）與 `sop-sync` PR（`sop/sync-*` 分支）的目標是 `main`，只能改各自允許的路徑。
+- 啟動 PR（`sop/bootstrap` 分支）與 `sop-sync` PR（`sop/sync-*` 分支）的目標是 `main`，由 `path-scope` 限制：啟動 PR 不能修改範本擁有的路徑，只能刪除關閉的模組的檔案；sync PR 只能改範本擁有的路徑、`AGENTS.md` 與 `.sop/config.yml`。
 
 Chief 的紀錄直接推送到 `milestone/Mx`，不經過 PR，所以不受這項檢查限制；Chief 只改紀錄檔，由流程與 Owner 的 milestone 審查保證。
 
 範本擁有的路徑（`.sop/managed.txt`）在專案中是唯讀的，所以 `sop-sync` 覆寫時不會蓋掉專案的修改。
 
-> **EN:** PRs into `milestone/*` may not touch `AGENTS.md`, `CLAUDE.md`, `.sop/**`, `docs/sop/**`, `.claude/**`, `.github/**`, the board, the decision log, `spec_paths` or template-managed paths, except paths a ticket's `allowed_paths` lists exactly (approved by the Owner in the plan). Bootstrap and sync PRs target `main` and may change only their own paths. The Chief's direct pushes of records aren't PRs and aren't checked here; the process and the Owner's milestone review cover them. Template-owned paths are read-only in projects, so sync can overwrite them safely.
+> **EN:** PRs into `milestone/*` may not touch `AGENTS.md`, `CLAUDE.md`, `.sop/**`, `docs/sop/**`, `.claude/**`, `.github/**`, the board, the decision log, `spec_paths` or template-managed paths, except paths a ticket's `allowed_paths` lists exactly (approved by the Owner in the plan). Bootstrap and sync PRs target `main` and are limited by `path-scope`: a bootstrap PR may not change template-owned paths except deleting disabled modules' files; a sync PR may change only template-owned paths, `AGENTS.md` and `.sop/config.yml`. The Chief's direct pushes of records aren't PRs and aren't checked here; the process and the Owner's milestone review cover them. Template-owned paths are read-only in projects, so sync can overwrite them safely.
 
 ## 4. 測試介面 / The test interface
 

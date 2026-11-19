@@ -77,7 +77,33 @@ python3 scripts/sop/config.py
 
 > **EN:** Bootstrap writes config and check results on `sop/bootstrap`, removes template-only files and disabled modules, fills the project section of `AGENTS.md`, sets `ready: true` only when every check passed or is not applicable, and opens a PR to `main`. Only the Owner can merge it, so an agent can never open the gate alone. If the config is later broken, `sop-ready` fails on the next PR and the gate closes again.
 
-## 6. 檢查目前的狀態 / Checking the gate
+## 6. 怎麼執行 / How to run it
+
+有 Claude Code 時，開一個 session 使用 `bootstrap-project` skill，它會帶你走完全部步驟。不使用 Claude 時，直接用同一支腳本：
+
+```bash
+scripts/sop/bootstrap ask
+```
+
+```bash
+scripts/sop/bootstrap apply
+```
+
+接著實作 `scripts/sop/test`（[`ci-contract.md`](ci-contract.md#4-測試介面--the-test-interface)），再查證並完成：
+
+```bash
+GITHUB_TOKEN=<機器帳號的 token> scripts/sop/bootstrap check
+```
+
+```bash
+scripts/sop/bootstrap finalize
+```
+
+`check` 讀不到的項目（例如 ruleset）用 `scripts/sop/bootstrap record B3 --status passed --evidence "<截圖路徑>"` 記錄。腳本不會推送或開 PR；完成後自己在 `sop/bootstrap` 分支 commit、推送，並開 PR 到 `main`。
+
+> **EN:** With Claude Code, use the `bootstrap-project` skill. Without it, run the same script: `ask`, `apply`, implement `scripts/sop/test`, `check` (with the machine account's token), record anything it can't read with `record`, then `finalize`. The script never pushes or opens PRs; commit on `sop/bootstrap`, push, and open a PR to `main` yourself.
+
+## 7. 檢查目前的狀態 / Checking the gate
 
 ```bash
 python3 scripts/sop/guards.py sop-ready
