@@ -1,0 +1,163 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "sop-v2 project configuration",
+  "description": "Validation rules for .sop/config.yml (design doc 14.2). Uses only the subset implemented by scripts/sop/config.py. No type allows null, and every property is required: there are no defaults (P2).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "project",
+    "owner",
+    "bot",
+    "doc_language",
+    "max_parallel",
+    "spec_paths",
+    "serial_resources",
+    "append_only_files",
+    "sensitive_areas",
+    "modules",
+    "template",
+    "overrides"
+  ],
+  "properties": {
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "goal"],
+      "properties": {
+        "name": {
+          "description": "The project's name.",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "goal": {
+          "description": "One sentence describing the project's goal.",
+          "type": "string",
+          "pattern": "\\S"
+        }
+      }
+    },
+    "owner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["display_name", "github"],
+      "properties": {
+        "display_name": {
+          "description": "How documents address the Owner.",
+          "type": "string",
+          "pattern": "\\S"
+        },
+        "github": {
+          "description": "GitHub login of the Owner.",
+          "type": "string",
+          "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$"
+        }
+      }
+    },
+    "bot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["github", "github_id"],
+      "properties": {
+        "github": {
+          "description": "GitHub login of the machine account. Must not be the Owner's account (logins are case-insensitive).",
+          "type": "string",
+          "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$",
+          "x-not-equal-to": {"pointer": "/owner/github", "ignore_case": true}
+        },
+        "github_id": {
+          "description": "Numeric GitHub user ID of the machine account.",
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "doc_language": {
+      "description": "Language of project output (PRs, issues, reports).",
+      "type": "string",
+      "enum": ["zh-TW", "en"]
+    },
+    "max_parallel": {
+      "description": "Maximum number of tickets in progress at once.",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5
+    },
+    "spec_paths": {
+      "description": "Extra read-only globs (spec files). Relative paths. May be empty.",
+      "type": "array",
+      "items": {"type": "string", "pattern": "^[^/\\s]"}
+    },
+    "serial_resources": {
+      "description": "Names of serialized resources, e.g. db-schema. May be empty.",
+      "type": "array",
+      "items": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"}
+    },
+    "append_only_files": {
+      "description": "Shared append-only files. Relative paths. May be empty.",
+      "type": "array",
+      "items": {"type": "string", "pattern": "^[^/\\s]"}
+    },
+    "sensitive_areas": {
+      "description": "Areas that trigger escalation when not covered by tests. May be empty.",
+      "type": "array",
+      "items": {"type": "string", "pattern": "\\S"}
+    },
+    "modules": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["learning", "claude_review", "docs_lint"],
+      "properties": {
+        "learning": {"type": "boolean"},
+        "claude_review": {"type": "boolean"},
+        "docs_lint": {"type": "boolean"}
+      }
+    },
+    "template": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source"],
+      "properties": {
+        "source": {
+          "description": "owner/repo that template updates are synced from.",
+          "type": "string",
+          "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}/[A-Za-z0-9._-]{1,100}$"
+        }
+      }
+    },
+    "overrides": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["disabled_guards"],
+      "properties": {
+        "disabled_guards": {
+          "description": "Template guards turned off by the project (C4). Each needs a reason and a decision ID recorded in docs/decisions.md. sop-ready itself cannot be disabled. May be empty.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["guard", "reason", "decision"],
+            "properties": {
+              "guard": {
+                "type": "string",
+                "enum": [
+                  "branch-ticket",
+                  "path-scope",
+                  "readonly-paths",
+                  "append-only",
+                  "serial-resource",
+                  "evidence",
+                  "commit-author",
+                  "tests",
+                  "no-weakened-tests",
+                  "done-when"
+                ]
+              },
+              "reason": {"type": "string", "pattern": "\\S"},
+              "decision": {"type": "string", "pattern": "^D-[0-9]{3,}$"}
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,24 @@
+# A completed bootstrap state with fictional evidence, used by the tests.
+ready: true
+checks:
+  B1:
+    status: passed
+    evidence: "fictional: session identity is example-bot"
+  B2:
+    status: passed
+    evidence: "fictional: example-bot has write permission"
+  B3:
+    status: passed
+    evidence: "fictional: main ruleset restricts updates"
+  B4:
+    status: passed
+    evidence: "fictional: milestone ruleset requires PR and CI"
+  B5:
+    status: passed
+    evidence: "fictional: scripts/sop/test wrote build/sop/junit.xml"
+  B6:
+    status: not_applicable
+    evidence: "claude_review module is off"
+  B7:
+    status: passed
+    evidence: "fictional: template-only paths removed"

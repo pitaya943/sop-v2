@@ -1,0 +1,74 @@
+# CI for the sop-v2 template repo itself. Template-only: bootstrap removes it.
+#
+# It deliberately does NOT run sop-ready: the template is supposed to be
+# unfilled, so the gate is expected to be closed here. Projects run sop-ready
+# from sop-guards.yml instead (stage S2).
+#
+# Branch protection should require the single "self-ci" check below; it fails
+# unless every other job succeeded, so job names can change without touching
+# the ruleset.
+name: self-ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: self-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: tests (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.13"]  # oldest supported (D13) and current
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install test dependencies
+        run: python -m pip install -r tests/sop/requirements.txt
+      - name: Run tests (no network access needed)
+        run: python -m pytest tests/sop -q -p no:cacheprovider
+
+  personal-data:
+    name: personal-data scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # the commit scan needs the pull request's commits
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Scan files
+        if: github.event_name != 'pull_request'
+        run: python tests/sop/pii_scan.py
+      - name: Scan files and pull-request commits
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: python tests/sop/pii_scan.py --commits "$BASE_SHA..$HEAD_SHA"
+
+  self-ci:
+    name: self-ci
+    if: always()
+    needs: [tests, personal-data]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every job to succeed
+        env:
+          TESTS: ${{ needs.tests.result }}
+          SCAN: ${{ needs.personal-data.result }}
+        run: |
+          echo "tests: $TESTS, personal-data scan: $SCAN"
+          test "$TESTS" = success && test "$SCAN" = success

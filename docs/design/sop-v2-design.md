@@ -1,6 +1,6 @@
 # SOP v2 設計文件
 
-Chief of Staff 與 subagent 協作、平行開發的通用專案範本。草稿 v0.5，2026-11-19。
+Chief of Staff 與 subagent 協作、平行開發的通用專案範本。草稿 v0.6，2026-11-19。
 
 > **一句話：** 一個任何人都能拿來開新專案的範本。它定義「Chief 分派、Builder 實作、Verifier 獨立驗收、Owner 只做決策」的協作模式與平行開發規則，並用 CI 把角色之間的契約變成機器檢查。使用者在 GitHub 上按「Use this template」建立專案，再由一個 agent 引導的啟動流程逐項詢問、即時查證所有必要資訊；資訊不完整或查證不通過，就不能開始開發。範本本身不含任何個人或專案資訊。
 >
@@ -95,10 +95,14 @@ sop-v2 由兩個前身整理而來：一份以文件規範為主的單 session �
 | D9 | 授權 | **MIT-0**，著作權人「sop-v2 contributors」 | 下游不需保留聲明；授權檔不含個人名字（P1）；保留免責條款。範本的 `LICENSE` 屬於「僅範本」檔案，啟動時移除，專案自行決定授權 |
 | D10 | 範本自身的開發檔案 | **啟動時移除**（清單在 `.sop/template-only.txt`） | GitHub template 會複製整個 repo；設計文件、guards 的測試、範本自己的 CI、範本 README 與 LICENSE 由啟動流程刪除，`sop-ready` 確認已刪除 |
 | D11 | 客製化方式 | **五層客製化 C1–C5**（第 14.6 節） | 專案特有的內容放在專案擁有的位置，不被 `sop-sync` 覆寫；停用範本檢查必須有決策紀錄 |
+| D12 | 設定檔格式（S0） | **限制版 YAML 子集**，由 `scripts/sop/config.py` 自行解析與輸出 | 保留原生 `null`（TOML 沒有）與欄位旁的註解（JSON 沒有），只用標準函式庫；YAML 版本間有歧義的寫法（`yes`、`no`、`~`、`0123`、日期、`12:30`）一律報錯並提示加引號，不猜測 |
+| D13 | Python 最低版本（S0） | **3.11**；自我 CI 測 3.11 與 3.13 | 3.10 已於 2026-10 停止支援；Ubuntu 22.04 內建 3.10 的使用者需另裝 Python |
+| D14 | 測試依賴（S0） | **只用 pytest，鎖定版本**（`tests/sop/requirements.txt`） | 檢查程式本身仍只用標準函式庫；pytest 只在範本自己的測試中使用 |
+| D15 | 範本歷史中已有一筆含機器帳號 email 的 merge commit（S0 發現） | **接受，不改寫歷史；改以設定防止再發生**：機器帳號開啟 email 隱私與「封鎖會暴露 email 的推送」，Owner 檢查 `main` 的 ruleset 不讓機器帳號合併 | 該 email 永久留在範本 repo 的歷史中；「Use this template」建立的專案不帶歷史，所以不影響下游（第 16 節）。PR 內的 commit 由 self CI 檢查作者；網頁合併產生的 merge commit 在 CI 之後才建立，只能靠帳號設定防範 |
 
 **為什麼從 Copier 改成 template + agent 啟動（D2、D7）：** Copier 要求使用者在本機安裝 Python 與 Copier、在終端機一次回答十幾題，而且只能檢查**格式**，無法檢查**事實**（機器帳號是否存在、權限是否正確）。對不熟悉的使用者，這是最容易出錯、也最難排查的一步。本範本預設使用者使用 Claude Code，所以引導者可以直接是 agent：逐題詢問、即時查證、當場指出修正方法。設計早已把「範本擁有的檔案」與「專案的設定值」分開，幾乎不需要模板渲染，所以這個改變成本很低。
 
-> **EN:** D1 replace v1; D2 (revised in v0.5) distribute as a GitHub template repository with an agent-guided bootstrap instead of Copier; D3 language is a required per-project choice; D4 the machine account is required and live-checked at bootstrap; D5 the learning module is optional and must be chosen; D6 P1 and P2; D7 (revised) template mode is on and "Use this template" is the only creation path, with P2 guaranteed by the gate rather than the creation tool; D8 Markdown docs; D9 MIT-0; D10 template-only development files are removed at bootstrap. Why drop Copier: it needs a local Python install, asks everything in one terminal pass, and can validate format but not facts. An agent can ask one question at a time, check answers against GitHub live, and explain the fix. Because template-owned files and project values were already separated, almost no templating is needed.
+> **EN:** D1 replace v1; D2 (revised in v0.5) distribute as a GitHub template repository with an agent-guided bootstrap instead of Copier; D3 language is a required per-project choice; D4 the machine account is required and live-checked at bootstrap; D5 the learning module is optional and must be chosen; D6 P1 and P2; D7 (revised) template mode is on and "Use this template" is the only creation path, with P2 guaranteed by the gate rather than the creation tool; D8 Markdown docs; D9 MIT-0; D10 template-only development files are removed at bootstrap; D11 customization layers; D12 (S0) the config file is a restricted YAML subset parsed and written by our own stdlib code, keeping native null and comments while rejecting anything YAML versions read differently; D13 Python 3.11 minimum, CI on 3.11 and 3.13; D14 pytest as the only test dependency, pinned; D15 a merge commit already in the template's history carries the machine account's email: accepted, history not rewritten; prevented from recurring by the account's email-privacy settings and a ruleset that keeps the machine account from merging (projects created from the template don't inherit the history; merge commits are created after CI, so only settings can prevent them). Why drop Copier: it needs a local Python install, asks everything in one terminal pass, and can validate format but not facts. An agent can ask one question at a time, check answers against GitHub live, and explain the fix. Because template-owned files and project values were already separated, almost no templating is needed.
 
 ## 5. 角色與權限
 
@@ -321,14 +325,15 @@ Context window 是短期記憶，用完即丟；要留下的事一律寫進 repo
 | `.sop/config.yml` | 專案設定值 | 啟動流程；之後只能經 Owner 核准的 PR 修改 | 必須符合 `.sop/schema.json` | 不覆寫；新版若新增欄位，sync PR 會要求填寫 |
 | `.sop/bootstrap.yml` | 啟動查證結果 | `bootstrap-project`；Owner 合併時核准 | 見第 15 節 | 不覆寫 |
 | `.sop/schema.json`、`.sop/managed.txt`、`.sop/version` | 設定格式、範本擁有的路徑、範本版本 | 範本 | 專案不改 | 覆寫 |
-| `docs/sop/**`、`.claude/skills/**`、`scripts/sop/**` | 完整流程、skills、檢查程式 | 範本 | 專案不改；要改就回饋到 sop-v2 | 覆寫 |
+| `docs/sop/**`、`.claude/skills/**`、`scripts/sop/**`（`scripts/sop/test` 除外） | 完整流程、skills、檢查程式 | 範本 | 專案不改；要改就回饋到 sop-v2 | 覆寫 |
+| `scripts/sop/test` | 測試介面（第 10.2 節） | 專案（啟動時由 `bootstrap-project` 協助寫入） | 範本內附的版本故意失敗 | 不覆寫 |
 | `docs/board.md` | ticket 狀態、各輪使用的模型 | Chief | 單一事實來源 | 不覆寫 |
 | `docs/decisions.md` | Owner 的決定 | Chief | 只增不改；推翻時新增一列並註明取代哪列 | 不覆寫 |
 | `docs/pitfalls.md` | 下一個 agent 不知道就會再犯的事 | Chief（milestone 結束時） | 上限 30 條 | 不覆寫 |
 | `docs/tickets/*.md` | 任務契約 | Chief | 完成條件只在這裡 | 不覆寫 |
 | `docs/milestones/Mx.md` | 給 Owner 的報告 | Chief | 數字可重算；每個「已驗證」都連到證據 | 不覆寫 |
 
-> **EN:** Anything that must outlive a context window goes into the repo. Template-owned files (listed in `.sop/managed.txt`: `docs/sop/**`, skills, `scripts/sop/**`, schema, version) are overwritten by `sop-sync`; project values live in `.sop/config.yml`, validated by `.sop/schema.json`; project-owned files are never overwritten.
+> **EN:** Anything that must outlive a context window goes into the repo. Template-owned files (listed in `.sop/managed.txt`: `docs/sop/**`, skills, `scripts/sop/**` except the project-implemented `scripts/sop/test`, schema, version) are overwritten by `sop-sync`; project values live in `.sop/config.yml`, validated by `.sop/schema.json`; project-owned files are never overwritten.
 
 ## 12. 升級、修正輪與證據
 
@@ -406,11 +411,11 @@ Context window 是短期記憶，用完即丟；要留下的事一律寫進 repo
 | `sensitive_areas` | 字串清單，可為空但不可為 `null` | — | 升級條件第 4 條 |
 | `modules.*` | 布林，不可為 `null` | 開啟 review 時 secret 已設定（B6） | 可選模組 |
 | `template.source` | `owner/repo` | 由 GitHub API 的 `template_repository` 自動讀取並請使用者確認 | `sop-sync` 的來源 |
-| `overrides.disabled_guards` | 物件清單（檢查名稱、原因、決策編號），可為空但不可為 `null` | 檢查名稱存在；決策編號存在於 `docs/decisions.md` | 停用範本檢查（第 14.6 節 C4） |
+| `overrides.disabled_guards` | 物件清單（檢查名稱、原因、決策編號），可為空但不可為 `null` | 檢查名稱存在（`sop-ready` 本身不能停用）；決策編號（格式 `D-001`）存在於 `docs/decisions.md` | 停用範本檢查（第 14.6 節 C4） |
 
 模型分配不是設定欄位：它由 Owner 在每個 milestone 的計畫核准時指定，記在看板上，因為模型會隨時間更換。
 
-**驗證只寫一份：** `.sop/schema.json` 同時被三個地方使用：`bootstrap-project` skill、CI 的 `sop-ready`、給不使用 Claude 的人準備的備用腳本 `scripts/sop/bootstrap`（只用 Python 標準函式庫的互動腳本，做格式驗證與能用 `GITHUB_TOKEN` 完成的查證）。為了讓標準函式庫就能驗證，schema 只使用一個小子集（型別、必填、列舉、正規表示式、數值範圍、陣列元素型別），並由 `scripts/sop/config.py` 實作。
+**驗證只寫一份：** `.sop/schema.json` 同時被三個地方使用：`bootstrap-project` skill、CI 的 `sop-ready`、給不使用 Claude 的人準備的備用腳本 `scripts/sop/bootstrap`（只用 Python 標準函式庫的互動腳本，做格式驗證與能用 `GITHUB_TOKEN` 完成的查證）。為了讓標準函式庫就能驗證，schema 只使用一個小子集，並由 `scripts/sop/config.py` 實作：`type`（單一型別，永遠不含 `null`）、`properties`、`required`、`additionalProperties`（只允許 `false`，用來抓欄位名稱的錯字）、`items`（可巢狀，用於物件清單）、`enum`、`pattern`、`minLength`、`minimum`、`maximum`，以及一個擴充關鍵字 `x-not-equal-to`（跨欄位不相等，可設定忽略大小寫，用於 `bot.github ≠ owner.github`）。驗證器遇到子集以外的關鍵字會直接報錯，不會默默略過規則。
 
 ### 14.3 為什麼不需要模板渲染
 
@@ -501,13 +506,13 @@ P2 用三層來保證。每一層防的情況不同，缺一層就有漏洞：
 
 **閘門如何打開**
 
-1. `bootstrap-project` 在 `sop/bootstrap` 分支寫入設定與查證結果，全部通過時把 `ready` 設為 `true`，並開 PR 到 `main`。
+1. `bootstrap-project` 在 `sop/bootstrap` 分支寫入設定與查證結果，全部通過時把 `ready` 設為 `true`，並開 PR 到 `main`。`ready: true` 時，B1–B7 每項都必須是 `passed`（附證據）或 `not_applicable`，否則 `sop-ready` 失敗，這樣手改一行 `ready: true` 也開不了閘門。
 2. 只有 Owner 能合併 `main`（B3 已查證），所以**閘門最後一定經過 Owner 核准**。agent 自己無法把閘門打開。
 3. 合併後，`sop-ready` 在 `main` 上為綠，`plan-milestone` 才能開始 M0。
 
 若之後任何設定被改壞（例如有人手改 `.sop/config.yml`），`sop-ready` 會在下一個 PR 失敗，閘門自動關上。
 
-> **EN:** P2 in three layers: L1 the bootstrap skill asks one question at a time, validates against the schema, and live-checks facts with GitHub (catching missing accounts, wrong permissions, missing rulesets); L2 CI `sop-ready` on every PR into main or milestone branches; L3 every skill checks `.sop/bootstrap.yml` first. Bootstrap never fills an answer for the user, re-asks on failure with the fix, and confirms the full config before writing. B1–B7 are verified with evidence. The gate opens only when the Owner merges the bootstrap PR, and closes again if config is later broken.
+> **EN:** P2 in three layers: L1 the bootstrap skill asks one question at a time, validates against the schema, and live-checks facts with GitHub (catching missing accounts, wrong permissions, missing rulesets); L2 CI `sop-ready` on every PR into main or milestone branches; L3 every skill checks `.sop/bootstrap.yml` first. Bootstrap never fills an answer for the user, re-asks on failure with the fix, and confirms the full config before writing. B1–B7 are verified with evidence; `sop-ready` rejects `ready: true` while any check is pending or failed, or passed without evidence. The gate opens only when the Owner merges the bootstrap PR, and closes again if config is later broken.
 
 ## 16. 範本的個資衛生
 
@@ -515,7 +520,7 @@ P1 要求 sop-v2 這個 repo 本身沒有個人資訊。做法：
 
 - **內容：** 範本中的人一律以角色稱呼（Owner、Chief、機器帳號），具體值全部是 `.sop/config.yml` 中未填的欄位。範例資料使用明顯虛構的值（例如 `example-owner`、`example-bot`）。
 - **CI 掃描：** sop-v2 自己的 CI 掃描 email、GitHub 帳號連結、`@` 提及等樣式。採**允許清單**：只允許虛構範例值與公開的工具來源（例如 GitHub Actions 官方 action）。不用禁止清單，因為禁止清單本身就得寫出要隱藏的個資。
-- **Git 歷史：** commit 作者使用 noreply 位址；PR 合併前檢查新 commit 的作者資訊。歷史一旦含有個資，只能靠改寫歷史清除，所以要在合併前擋住。
+- **Git 歷史：** commit 作者使用 noreply 位址；PR 合併前檢查新 commit 的作者資訊。歷史一旦含有個資，只能靠改寫歷史清除，所以要在合併前擋住。sop-v2 本身已有一筆例外，處理方式見 D15。
 - **合併產生的 commit：** Owner 在網頁上合併 PR 時，GitHub 會以 Owner 的身分（顯示名稱與 noreply email）建立 merge commit。在意這點的專案可以只允許 rebase 合併，或清空 GitHub 的顯示名稱。（sop-v2 本身目前接受這一點。）
 - **使用紀錄不進範本：** 某個專案怎麼用這個範本、遇到什麼問題，留在那個專案的 repo；回饋到 sop-v2 時只寫成通用的規則。
 - **Template 不帶歷史：** 用「Use this template」建立的 repo 從一個全新的 commit 開始，不包含 sop-v2 的 git 歷史，所以範本歷史中的合併紀錄不會進入使用者的專案。
@@ -567,7 +572,7 @@ sop-v2/
     guards.py                     # 中立檢查（含 sop-ready）
     compare_junit.py              # no-weakened-tests、done-when
     bootstrap                     # 不使用 Claude 時的備用互動腳本
-    test                          # 測試介面；預設失敗
+    test                          # 測試介面；預設失敗（專案擁有，不被 sop-sync 覆寫）
 ```
 
 > **EN:** The template repo root looks like a project; only paths in `.sop/template-only.txt` (README, LICENSE, design doc, guard tests, self CI) are removed at bootstrap. Config, schema, bootstrap state, the managed-path list and the version live under `.sop/`.
@@ -613,7 +618,7 @@ sop-v2/
 1. **Ruleset 的可讀性：** 以機器帳號（非 Admin）能否透過 API 讀到 branch rules，決定 B3、B4 能否全自動查證。
 2. **Verifier PASS 的機器檢查** 放進 v2.0 還是 v2.1。
 3. **`template_repository` 的可用性：** 用 template 建立的 repo，GitHub API 會回傳來源範本；需確認機器帳號能讀到，否則 `template.source` 改由使用者輸入。
-4. **Schema 子集的範圍：** 只用標準函式庫實作驗證，需要在 S0 確認子集足以表達第 14.2 節的所有規則。
-5. **設定檔格式：** Python 標準函式庫沒有 YAML 解析器。S0 要決定：限制 YAML 子集並自寫小型解析器、改用 TOML（`tomllib` 自 3.11 起是標準函式庫）或 JSON，或允許一個外部依賴。本文件暫以 `config.yml` 稱呼。
+4. ~~**Schema 子集的範圍**~~ **已解決（S0）：** 原本列出的子集不夠，缺三項：跨欄位規則（`bot.github ≠ owner.github`）、物件清單的元素結構（`overrides.disabled_guards`）、拒絕未知欄位。補上 `x-not-equal-to`、可巢狀的 `items` 與 `additionalProperties: false` 後足夠（第 14.2 節）。證據：`tests/sop/test_schema_rules.py` 從 schema 自動列出每一條規則，若有規則沒有「拒絕」與「通過」案例，測試就失敗。
+5. ~~**設定檔格式**~~ **已解決（S0）：** 限制版 YAML 子集（D12）。TOML 沒有 `null`，無法表達「欄位存在但未填」；JSON 不能寫註解；外部依賴違反「只用標準函式庫」。證據：`tests/sop/test_yaml_subset.py` 的接受與拒絕案例，以及在有 PyYAML 時比對解析結果一致的測試。
 
-> **EN:** Open: (1) whether a non-admin machine account can read branch rules (decides if B3/B4 are fully automatic); (2) Verifier-PASS machine check in v2.0 or v2.1; (3) whether the machine account can read `template_repository` from the API, else the user types `template.source`; (4) confirm in S0 that the stdlib schema subset can express every rule in section 14.2; (5) the config file format, since Python's standard library has no YAML parser (restricted YAML with a small parser, TOML via `tomllib`, JSON, or one dependency); this doc calls it `config.yml` for now.
+> **EN:** Open: (1) whether a non-admin machine account can read branch rules (decides if B3/B4 are fully automatic); (2) Verifier-PASS machine check in v2.0 or v2.1; (3) whether the machine account can read `template_repository` from the API, else the user types `template.source`; (4) resolved in S0: the original subset was not enough (no cross-field rule, no object-list items, no unknown-field rejection); adding `x-not-equal-to`, nestable `items` and `additionalProperties: false` covers every rule, and a test enumerates the schema's rules and fails if any lacks a rejected and an accepted case; (5) resolved in S0: a restricted YAML subset (D12), because TOML has no null, JSON has no comments, and a dependency breaks stdlib-only.

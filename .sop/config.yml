@@ -1,0 +1,37 @@
+# sop-v2 project configuration (design doc 14.2).
+#
+# Every field must be set explicitly; there are no defaults (P2). "null" means
+# "not filled in yet", and sop-ready fails while any field is null.
+# The bootstrap-project skill asks for each value and writes this file.
+#
+# Format: a restricted subset of YAML (see scripts/sop/config.py). In short:
+#   - indent with spaces, never tabs
+#   - use true / false / null exactly; quote any other text that looks like
+#     a boolean, number or date (for example "no", "0123", "2026-01-01")
+#   - quote text that starts with a special character, such as "**/*.md"
+#   - an empty list is written []
+# Rules for every field live in .sop/schema.json.
+
+project:
+  name: null            # text: the project's name
+  goal: null            # text: one sentence describing the goal
+owner:
+  display_name: null    # text: how documents address the Owner
+  github: null          # GitHub login of the Owner (repo owner or admin)
+bot:
+  github: null          # GitHub login of the machine account; must differ from owner.github
+  github_id: null       # numeric GitHub user ID of the machine account
+doc_language: null      # language of project output: zh-TW or en
+max_parallel: null      # tickets in progress at once: 1-5 (2-3 worked well in practice)
+spec_paths: null        # list of extra read-only globs (spec files); [] for none
+serial_resources: null  # list of serialized resource names, e.g. db-schema; [] for none
+append_only_files: null # list of shared append-only files; [] for none
+sensitive_areas: null   # list of areas that must be covered by tests; [] for none
+modules:
+  learning: null        # true / false: learning module
+  claude_review: null   # true / false: @-mention review workflow
+  docs_lint: null       # true / false: Markdown lint and link check
+template:
+  source: null          # owner/repo this project syncs template updates from
+overrides:
+  disabled_guards: null # list of {guard, reason, decision}; [] for none (C4)
