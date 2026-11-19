@@ -40,6 +40,8 @@ ALLOWED_ACCOUNTS = {
     "example-owner", "example-bot",  # fictional examples
     "actions",  # official GitHub Actions (github.com/actions/...)
     "apps",  # github.com/apps/<app> pages
+    # Public sources cited in docs/suggestion.md (published works, not user data).
+    "openai", "google-gemini", "agentsmd", "agentskills", "mattpocock", "cursor", "garrytan",
 }
 ALLOWED_MENTIONS = {
     "example-owner", "example-bot",

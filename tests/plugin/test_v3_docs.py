@@ -19,7 +19,8 @@ FENCE_RE = re.compile(r"^```.*?^```", re.MULTILINE | re.DOTALL)
 
 
 def v3_docs() -> list[Path]:
-    docs = {REPO_ROOT / "README.md", REPO_ROOT / "docs" / "design" / "v3-lightweight-design.md"}
+    docs = {REPO_ROOT / "README.md", REPO_ROOT / "docs" / "suggestion.md",
+            REPO_ROOT / "docs" / "design" / "v3-lightweight-design.md"}
     for rel in ("skills", "docs/guardrails", "docs/concepts"):
         docs.update((REPO_ROOT / rel).rglob("*.md"))
     return sorted(docs)

@@ -4,9 +4,9 @@
 
 A set of small, composable skills for developing with agents under human review: plan work into tickets, build red-then-green, verify cold in a fresh session, and report. Protections (CI gates, branch protection, scope checks) aren't a mandatory gate. They're **guardrail recipes**, each explaining what it guards against, when it's worth adding, how to add it and how to prove it works, so you add them when you need them.
 
-> **狀態 / Status：v3 開發中（步驟 V1：骨架）。** 目前只有 plugin 骨架，還沒有任何 skill；進度見 [設計文件第 13 節](docs/design/v3-lightweight-design.md#13-實作計畫--implementation-plan)。舊的重量版（啟動閘門、11 項 CI 檢查、範本同步）凍結在 release `v2.0.0-rc.1`，設計見 [`sop-v2-design.md`](docs/design/sop-v2-design.md)。
+> **狀態 / Status：v3 開發中。** 已有 5 個核心 skill（`setup`、`build`、`verify`、`tdd`、`evidence`）；進度見 [設計文件第 13 節](docs/design/v3-lightweight-design.md#13-實作計畫--implementation-plan)。各等級建議具備哪些元件、各能達成什麼，見 [`docs/suggestion.md`](docs/suggestion.md)。舊的重量版（啟動閘門、11 項 CI 檢查、範本同步）凍結在 release `v2.0.0-rc.1`，設計見 [`sop-v2-design.md`](docs/design/sop-v2-design.md)。
 >
-> **v3 in development (step V1: skeleton).** Only the plugin skeleton exists; there are no skills yet. Progress: [design doc section 13](docs/design/v3-lightweight-design.md#13-實作計畫--implementation-plan). The previous heavyweight version (bootstrap gate, 11 CI checks, template sync) is frozen at release `v2.0.0-rc.1`; its design is in [`sop-v2-design.md`](docs/design/sop-v2-design.md).
+> **v3 in development.** Five core skills exist (`setup`, `build`, `verify`, `tdd`, `evidence`). Which components each level should have, and what each achieves: [`docs/suggestion.md`](docs/suggestion.md). Progress: [design doc section 13](docs/design/v3-lightweight-design.md#13-實作計畫--implementation-plan). The previous heavyweight version (bootstrap gate, 11 CI checks, template sync) is frozen at release `v2.0.0-rc.1`; its design is in [`sop-v2-design.md`](docs/design/sop-v2-design.md).
 
 ## 安裝 / Install
 
