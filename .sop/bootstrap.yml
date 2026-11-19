@@ -15,7 +15,7 @@ checks:
   B3:  # main has a ruleset: the machine account cannot update it
     status: pending
     evidence: ""
-  B4:  # milestone/* has a ruleset: pull request and green CI required
+  B4:  # main's ruleset requires the CI checks to pass
     status: pending
     evidence: ""
   B5:  # scripts/sop/test is implemented and writes JUnit XML

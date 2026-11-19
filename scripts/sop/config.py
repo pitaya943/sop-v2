@@ -170,8 +170,8 @@ def _parse_scalar(value: str, number: int) -> Any:
         return "".join(out)
     if value[0] == "'":
         return value[1:-1].replace("''", "'")
-    if value == "[]":
-        return []
+    if value.startswith("["):
+        return _parse_flow_list(value, number)
     if value in ("null",):
         return None
     if value == "true":
@@ -206,6 +206,63 @@ def _parse_scalar(value: str, number: int) -> Any:
     if ": " in value or value.endswith(":"):
         raise ConfigSyntaxError(number, f"text containing ': ' must be quoted: \"{value}\"")
     return value
+
+
+def _parse_flow_list(value: str, number: int) -> list:
+    """Parse a one-line list such as ``[T-010, T-011]`` or ``[]``.
+
+    Only scalars are allowed inside; each item follows the same rules as a
+    value on its own (so ``[yes]`` and ``[**]`` are rejected like ``yes`` and
+    ``**``). Nested lists or mappings, empty items, and text after the closing
+    bracket are errors. Quoted items may contain commas.
+    """
+    items: list[str] = []
+    current: list[str] = []
+    quote = ""
+    i = 1
+    while True:
+        if i >= len(value):
+            raise ConfigSyntaxError(number, "unterminated list; close it with ']' on the same line")
+        c = value[i]
+        if quote:
+            current.append(c)
+            if quote == '"' and c == "\\":
+                current.append(value[i + 1:i + 2])
+                i += 2
+                continue
+            if c == quote:
+                if quote == "'" and value[i + 1:i + 2] == "'":
+                    current.append("'")
+                    i += 2
+                    continue
+                quote = ""
+        elif c in ("'", '"') and not "".join(current).strip():
+            quote = c
+            current.append(c)
+        elif c in "[{":
+            raise ConfigSyntaxError(number, "nested lists or mappings are not supported inside [ ]")
+        elif c == ",":
+            items.append("".join(current))
+            current = []
+        elif c == "]":
+            items.append("".join(current))
+            break
+        else:
+            current.append(c)
+        i += 1
+    if value[i + 1:].strip():
+        raise ConfigSyntaxError(number, "unexpected text after ']'")
+    if len(items) == 1 and not items[0].strip():
+        return []
+    result = []
+    for raw in items:
+        item = raw.strip()
+        if not item:
+            raise ConfigSyntaxError(number, "empty item in list; remove the extra ','")
+        if item[0] in ("'", '"') and _closing_quote(item, number) != len(item) - 1:
+            raise ConfigSyntaxError(number, "unexpected text after the closing quote")
+        result.append(_parse_scalar(item, number))
+    return result
 
 
 class _Parser:
@@ -304,7 +361,11 @@ class _Parser:
                 self.lines[self.i] = _Line(item_indent, item, line.number)
                 result.append(self._parse_mapping(item_indent))
             else:
-                result.append(_parse_scalar(_strip_comment(item, line.number), line.number))
+                value = _strip_comment(item, line.number)
+                if value.startswith("["):
+                    # A list inside a list is not in the subset (dump_yaml can't write it).
+                    raise ConfigSyntaxError(line.number, "nested lists are not supported")
+                result.append(_parse_scalar(value, line.number))
                 self.i += 1
         return result
 
@@ -551,6 +612,11 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Validate .sop/config.yml against .sop/schema.json.")
     parser.add_argument("--config", type=Path, default=REPO_ROOT / ".sop" / "config.yml")
     parser.add_argument("--schema", type=Path, default=REPO_ROOT / ".sop" / "schema.json")
+    parser.add_argument(
+        "--git-identity",
+        action="store_true",
+        help="after validating, set this repo's git author to the machine account (bot.*)",
+    )
     args = parser.parse_args(argv)
     try:
         data = load_yaml_file(args.config)
@@ -564,6 +630,28 @@ def main(argv: list[str] | None = None) -> int:
         print(f"{len(violations)} problem(s) found.", file=sys.stderr)
         return 1
     print(f"{args.config}: OK")
+    if args.git_identity:
+        return set_git_identity(data)
+    return 0
+
+
+# GitHub's noreply domain; the address is "<user id>+<login>@" + this.
+NOREPLY_DOMAIN = "users.noreply.github.com"
+
+
+def set_git_identity(data: dict) -> int:
+    """Make the machine account the commit author in the current repository.
+
+    Every session runs this before its first commit, so commit-author never
+    sees a personal identity. Uses the noreply address, never a real email.
+    """
+    import subprocess
+
+    login = data["bot"]["github"]
+    email = f"{data['bot']['github_id']}+{login}" + "@" + NOREPLY_DOMAIN
+    for key, value in (("user.name", login), ("user.email", email)):
+        subprocess.run(["git", "config", "--local", key, value], check=True)
+    print(f"git author set to: {login} <{email}>")
     return 0
 
 

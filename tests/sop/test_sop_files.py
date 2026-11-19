@@ -78,3 +78,37 @@ def test_template_config_lists_every_schema_field():
     for name, sub in schema["properties"].items():
         if sub["type"] == "object":
             assert keys(data[name]) == list(sub["properties"]), name
+
+
+def test_git_identity_sets_the_machine_account_as_author(tmp_path):
+    """--git-identity sets user.name / user.email from bot.* (noreply address)."""
+    import sys
+
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    fixture = REPO_ROOT / "tests" / "sop" / "fixtures" / "completed-config.yml"
+    proc = subprocess.run(
+        [sys.executable, str(REPO_ROOT / "scripts" / "sop" / "config.py"),
+         "--config", str(fixture), "--git-identity"],
+        cwd=tmp_path, capture_output=True, text=True,
+    )
+    assert proc.returncode == 0, proc.stderr
+    get = lambda key: subprocess.run(
+        ["git", "config", "--local", key], cwd=tmp_path, capture_output=True, text=True
+    ).stdout.strip()
+    assert get("user.name") == "example-bot"
+    assert get("user.email") == "1000001+example-bot" + "@" + config.NOREPLY_DOMAIN
+
+
+def test_git_identity_refuses_an_invalid_config(tmp_path):
+    import sys
+
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    proc = subprocess.run(
+        [sys.executable, str(REPO_ROOT / "scripts" / "sop" / "config.py"),
+         "--config", str(SOP / "config.yml"), "--git-identity"],
+        cwd=tmp_path, capture_output=True, text=True,
+    )
+    assert proc.returncode == 1
+    no_name = subprocess.run(["git", "config", "--local", "user.name"], cwd=tmp_path,
+                             capture_output=True, text=True)
+    assert no_name.stdout == ""

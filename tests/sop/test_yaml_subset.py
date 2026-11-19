@@ -55,6 +55,11 @@ def test_completed_fixture_parses():
         ('a: ""\n', {"a": ""}),
         ("a: []\n", {"a": []}),
         ("a: []  # none\n", {"a": []}),
+        ("a: [T-010]\n", {"a": ["T-010"]}),  # ticket depends_on (D17)
+        ("a: [T-010, T-011]  # deps\n", {"a": ["T-010", "T-011"]}),
+        ("a: [ p ,q ]\n", {"a": ["p", "q"]}),
+        ('a: ["**/*.md", \'a, b\', 3]\n', {"a": ["**/*.md", "a, b", 3]}),
+        ("a: [null, true]\n", {"a": [None, True]}),
         ("a:\n  - x\n  - 'y'\n", {"a": ["x", "y"]}),
         ("a:  # note\n  b: 1\n", {"a": {"b": 1}}),
         ("a:\n    b: 1\n    c:\n      d: 2\ne: 3\n", {"a": {"b": 1, "c": {"d": 2}}, "e": 3}),
@@ -104,7 +109,19 @@ def test_accepts(text, expected):
         ("a: *alias\n", 1, "must be quoted"),
         ("a: !tag x\n", 1, "must be quoted"),
         ("a: {b: 1}\n", 1, "must be quoted"),
-        ("a: [x, y]\n", 1, "must be quoted"),
+        ("a: [x, [y]]\n", 1, "nested"),
+        ("a:\n  - [x, y]\n", 2, "nested"),  # a flow list inside a block list
+        ("a:\n  - []\n", 2, "nested"),
+        ("a: [x, {y: 1}]\n", 1, "nested"),
+        ("a: [x,]\n", 1, "empty item"),
+        ("a: [, x]\n", 1, "empty item"),
+        ("a: [x,, y]\n", 1, "empty item"),
+        ("a: [x\n", 1, "unterminated"),
+        ("a: [x] y\n", 1, "after ']'"),
+        ("a: [yes]\n", 1, "ambiguous"),
+        ("a: [0123]\n", 1, "number"),
+        ("a: [**/*.md]\n", 1, "must be quoted"),
+        ('a: ["x]\n', 1, "unterminated"),
         ("a: |\n  text\n", 1, "must be quoted"),
         ("a: @-x\n", 1, "must be quoted"),
         ("a: b: c\n", 1, "': '"),
@@ -185,6 +202,7 @@ def test_agrees_with_a_real_yaml_parser():
         (FIXTURES / "completed-config.yml").read_text(),
         (FIXTURES / "completed-bootstrap.yml").read_text(),
         config.dump_yaml({"items": TRICKY_STRINGS}),
+        "deps: [T-010, T-011]\nmixed: ['a, b', \"**/*.md\", 3, null]\nnone: []\n",
     ]
     for text in samples:
         assert config.parse_yaml(text) == yaml.safe_load(text)
