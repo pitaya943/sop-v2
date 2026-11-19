@@ -1,6 +1,6 @@
 # SOP v2 設計文件
 
-Chief of Staff 與 subagent 協作、平行開發的通用專案範本。草稿 v0.6，2026-11-19。
+Chief of Staff 與 subagent 協作、平行開發的通用專案範本。草稿 v0.7，2026-11-19。
 
 > **一句話：** 一個任何人都能拿來開新專案的範本。它定義「Chief 分派、Builder 實作、Verifier 獨立驗收、Owner 只做決策」的協作模式與平行開發規則，並用 CI 把角色之間的契約變成機器檢查。使用者在 GitHub 上按「Use this template」建立專案，再由一個 agent 引導的啟動流程逐項詢問、即時查證所有必要資訊；資訊不完整或查證不通過，就不能開始開發。範本本身不含任何個人或專案資訊。
 >
@@ -99,10 +99,15 @@ sop-v2 由兩個前身整理而來：一份以文件規範為主的單 session �
 | D13 | Python 最低版本（S0） | **3.11**；自我 CI 測 3.11 與 3.13 | 3.10 已於 2026-10 停止支援；Ubuntu 22.04 內建 3.10 的使用者需另裝 Python |
 | D14 | 測試依賴（S0） | **只用 pytest，鎖定版本**（`tests/sop/requirements.txt`） | 檢查程式本身仍只用標準函式庫；pytest 只在範本自己的測試中使用 |
 | D15 | 範本歷史中已有一筆含機器帳號 email 的 merge commit（S0 發現） | **接受，不改寫歷史；改以設定防止再發生**：機器帳號開啟 email 隱私與「封鎖會暴露 email 的推送」，Owner 檢查 `main` 的 ruleset 不讓機器帳號合併 | 該 email 永久留在範本 repo 的歷史中；「Use this template」建立的專案不帶歷史，所以不影響下游（第 16 節）。PR 內的 commit 由 self CI 檢查作者；網頁合併產生的 merge commit 在 CI 之後才建立，只能靠帳號設定防範 |
+| D16 | 範本內附文件的語言（S1） | **繁體中文本文，每節附 English 摘要**（與本設計文件相同） | 中文讀者與英文讀者都能使用；份量較大，兩種語言必須一起維護。專案產出的語言仍由 `doc_language` 決定 |
+| D17 | Ticket front matter 的清單寫法（S1） | **逐行寫 `- 項目`，空清單寫 `[]`**，不用 `[a, b]` | 與設定檔共用同一個 YAML 子集，parser 不擴充（第 9 節範例已更新） |
+| D18 | 看板 `docs/board.md` 的格式（S1） | **固定欄位的 Markdown 表格** | 單一檔案、人機皆可讀；S2 的 parser 依欄位解析，欄位變更即是格式變更 |
+| D19 | 學習模組的紀錄位置（S1） | **獨立檔案 `docs/learning.md`**，不在 `docs/decisions.md` 加欄位 | 核心檔案的格式不隨模組開關改變；關閉模組只需刪檔（第 13 節已更新） |
+| D20 | `AGENTS.md` 專案段落的標記（S1） | **`<!-- sop:project:begin -->` 與 `<!-- sop:project:end -->`**，各出現一次 | `sop-sync` 只更新標記以外的內容；標記一旦發布就不能改名 |
 
 **為什麼從 Copier 改成 template + agent 啟動（D2、D7）：** Copier 要求使用者在本機安裝 Python 與 Copier、在終端機一次回答十幾題，而且只能檢查**格式**，無法檢查**事實**（機器帳號是否存在、權限是否正確）。對不熟悉的使用者，這是最容易出錯、也最難排查的一步。本範本預設使用者使用 Claude Code，所以引導者可以直接是 agent：逐題詢問、即時查證、當場指出修正方法。設計早已把「範本擁有的檔案」與「專案的設定值」分開，幾乎不需要模板渲染，所以這個改變成本很低。
 
-> **EN:** D1 replace v1; D2 (revised in v0.5) distribute as a GitHub template repository with an agent-guided bootstrap instead of Copier; D3 language is a required per-project choice; D4 the machine account is required and live-checked at bootstrap; D5 the learning module is optional and must be chosen; D6 P1 and P2; D7 (revised) template mode is on and "Use this template" is the only creation path, with P2 guaranteed by the gate rather than the creation tool; D8 Markdown docs; D9 MIT-0; D10 template-only development files are removed at bootstrap; D11 customization layers; D12 (S0) the config file is a restricted YAML subset parsed and written by our own stdlib code, keeping native null and comments while rejecting anything YAML versions read differently; D13 Python 3.11 minimum, CI on 3.11 and 3.13; D14 pytest as the only test dependency, pinned; D15 a merge commit already in the template's history carries the machine account's email: accepted, history not rewritten; prevented from recurring by the account's email-privacy settings and a ruleset that keeps the machine account from merging (projects created from the template don't inherit the history; merge commits are created after CI, so only settings can prevent them). Why drop Copier: it needs a local Python install, asks everything in one terminal pass, and can validate format but not facts. An agent can ask one question at a time, check answers against GitHub live, and explain the fix. Because template-owned files and project values were already separated, almost no templating is needed.
+> **EN:** D1 replace v1; D2 (revised in v0.5) distribute as a GitHub template repository with an agent-guided bootstrap instead of Copier; D3 language is a required per-project choice; D4 the machine account is required and live-checked at bootstrap; D5 the learning module is optional and must be chosen; D6 P1 and P2; D7 (revised) template mode is on and "Use this template" is the only creation path, with P2 guaranteed by the gate rather than the creation tool; D8 Markdown docs; D9 MIT-0; D10 template-only development files are removed at bootstrap; D11 customization layers; D12 (S0) the config file is a restricted YAML subset parsed and written by our own stdlib code, keeping native null and comments while rejecting anything YAML versions read differently; D13 Python 3.11 minimum, CI on 3.11 and 3.13; D14 pytest as the only test dependency, pinned; D16 shipped template docs are Traditional Chinese with English summaries, like this document; D17 ticket front matter writes lists one item per line (`[]` when empty), sharing the config's YAML subset; D18 `docs/board.md` is a Markdown table with fixed columns; D19 the learning module writes to its own `docs/learning.md` rather than adding a column to the decision log; D20 the project section of `AGENTS.md` is delimited by `<!-- sop:project:begin -->` and `<!-- sop:project:end -->`. D15 a merge commit already in the template's history carries the machine account's email: accepted, history not rewritten; prevented from recurring by the account's email-privacy settings and a ruleset that keeps the machine account from merging (projects created from the template don't inherit the history; merge commits are created after CI, so only settings can prevent them). Why drop Copier: it needs a local Python install, asks everything in one terminal pass, and can validate format but not facts. An agent can ask one question at a time, check answers against GitHub live, and explain the fix. Because template-owned files and project values were already separated, almost no templating is needed.
 
 ## 5. 角色與權限
 
@@ -255,19 +260,21 @@ Ticket 檔是 Chief 與 Builder 之間唯一的契約，也是 CI 的輸入。�
 id: T-012                    # 與分支 ticket/T-012 對應（CI branch-ticket）
 title: 一句話
 milestone: M2
-depends_on: [T-010]          # 排程
+depends_on:                  # 排程（清單逐行寫，空清單寫 []；D17）
+  - T-010
 allowed_paths:               # CI path-scope；排程時判斷重疊
-  - src/billing/**
-  - tests/billing/**
-  - docs/evidence/T-012/**
+  - "src/billing/**"
+  - "tests/billing/**"
+  - "docs/evidence/T-012/**"
 append_only:                 # 選填；須同時列在 allowed_paths，且在專案的 append_only 清單內
   - tests/implemented.txt
 readonly_override:           # 選填；允許改動預設唯讀路徑，須 Owner 在計畫中核准
   - .github/workflows/ci.yml
-serial: [db-schema]          # 選填；序列化資源
+serial:                      # 選填；序列化資源
+  - db-schema
 evidence: cli                # cli | screens | none；CI evidence 依此判定
 done_when:                   # CI done-when：這些測試 ID 必須在 JUnit 結果中存在且通過
-  - tests/billing/test_invoice.py::test_rounding
+  - "tests/billing/test_invoice.py::test_rounding"
 status: todo                 # 只由 Chief 修改（實際狀態以 board.md 為準）
 ---
 ```
@@ -321,7 +328,7 @@ Context window 是短期記憶，用完即丟；要留下的事一律寫進 repo
 
 | 檔案 | 內容 | 寫入者 | 規則 | `sop-sync` 時 |
 | --- | --- | --- | --- | --- |
-| `AGENTS.md` | 永遠適用的規則摘要 | 範本；專案段落由 Chief 經 Owner 核准修改 | 只放規則與連結；專案段落以標記隔開 | 只更新範本段落 |
+| `AGENTS.md` | 永遠適用的規則摘要 | 範本；專案段落由 Chief 經 Owner 核准修改 | 只放規則與連結；專案段落以 `<!-- sop:project:begin -->` / `<!-- sop:project:end -->` 隔開（D20） | 只更新範本段落 |
 | `.sop/config.yml` | 專案設定值 | 啟動流程；之後只能經 Owner 核准的 PR 修改 | 必須符合 `.sop/schema.json` | 不覆寫；新版若新增欄位，sync PR 會要求填寫 |
 | `.sop/bootstrap.yml` | 啟動查證結果 | `bootstrap-project`；Owner 合併時核准 | 見第 15 節 | 不覆寫 |
 | `.sop/schema.json`、`.sop/managed.txt`、`.sop/version` | 設定格式、範本擁有的路徑、範本版本 | 範本 | 專案不改 | 覆寫 |
@@ -330,6 +337,7 @@ Context window 是短期記憶，用完即丟；要留下的事一律寫進 repo
 | `docs/board.md` | ticket 狀態、各輪使用的模型 | Chief | 單一事實來源 | 不覆寫 |
 | `docs/decisions.md` | Owner 的決定 | Chief | 只增不改；推翻時新增一列並註明取代哪列 | 不覆寫 |
 | `docs/pitfalls.md` | 下一個 agent 不知道就會再犯的事 | Chief（milestone 結束時） | 上限 30 條 | 不覆寫 |
+| `docs/learning.md` | 學習紀錄（僅在 `modules.learning` 開啟時存在，D19） | Chief | 只增不改 | 不覆寫 |
 | `docs/tickets/*.md` | 任務契約 | Chief | 完成條件只在這裡 | 不覆寫 |
 | `docs/milestones/Mx.md` | 給 Owner 的報告 | Chief | 數字可重算；每個「已驗證」都連到證據 | 不覆寫 |
 
@@ -368,7 +376,7 @@ Context window 是短期記憶，用完即丟；要留下的事一律寫進 repo
 
 | 模組 | 設定欄位 | 內容 | 開啟後的啟動查證 |
 | --- | --- | --- | --- |
-| 學習 | `modules.learning` | milestone 報告加「Q1–Q4」一節（Owner 先答，Chief 再比較差異）；決策紀錄加 Owner 的回答欄；附教學與追問用的 skills | 無 |
+| 學習 | `modules.learning` | milestone 報告加「Q1–Q4」一節（Owner 先答，Chief 再比較差異）；Owner 的回答記在獨立的 `docs/learning.md`（D19）；附教學與追問用的 skills | 無 |
 | `@claude` review | `modules.claude_review` | PR 上提及 `@claude` 觸發審查的 workflow | repo secret 已設定 |
 | 文件檢查 | `modules.docs_lint` | Markdown 格式與連結檢查 | 無 |
 
@@ -552,6 +560,7 @@ sop-v2/
   docs/sop/
     workflow.md  parallel.md  dispatch.md  ci-contract.md  bootstrap.md  sync.md
   docs/board.md  docs/decisions.md  docs/pitfalls.md
+  docs/learning.md                # 學習模組開啟時才有（D19）
   docs/project/                   # 專案自己的規則與說明（C2，專案擁有）
   docs/tickets/_template.md
   docs/milestones/README.md  docs/milestones/report-template.md

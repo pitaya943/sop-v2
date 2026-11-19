@@ -56,6 +56,8 @@ ACCOUNT_RE = re.compile(r"github\.com/([A-Za-z0-9](?:[A-Za-z0-9-]{0,38}))", re.I
 # "-" (so emails and action refs such as "checkout@v4" are not mentions).
 MENTION_RE = re.compile(r"(?<![\w./@-])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,38}))")
 PY_DECORATOR_RE = re.compile(r"^\s*@[A-Za-z_][\w.]*")
+# A CLAUDE.md line that is only "@<path>" imports that file; it is not a mention.
+CLAUDE_IMPORT_RE = re.compile(r"^@[\w./-]+\.md\s*$")
 
 
 def scan_text(text: str, source: str, python: bool = False) -> list[str]:
@@ -71,6 +73,8 @@ def scan_text(text: str, source: str, python: bool = False) -> list[str]:
                 findings.append(f"{source}:{number}: GitHub account link {m.group(0)!r}")
         if python and PY_DECORATOR_RE.match(line):
             continue  # a Python decorator line is not a mention
+        if source.endswith("CLAUDE.md") and CLAUDE_IMPORT_RE.match(line):
+            continue
         for m in MENTION_RE.finditer(line):
             if m.group(1).lower() not in ALLOWED_MENTIONS:
                 findings.append(f"{source}:{number}: @-mention {m.group(0)!r}")

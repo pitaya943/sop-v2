@@ -53,6 +53,13 @@ def test_python_decorators_are_not_mentions():
     assert pii_scan.scan_text(AT + "pytest.fixture\n", "t.md") != []
 
 
+def test_claude_md_import_is_not_a_mention():
+    line = AT + "AGENTS.md\n"
+    assert pii_scan.scan_text(line, "CLAUDE.md") == []
+    assert pii_scan.scan_text(line, "notes.md") != []  # only CLAUDE.md imports
+    assert pii_scan.scan_text("hi " + line, "CLAUDE.md") != []  # whole line only
+
+
 def test_repository_is_clean():
     assert pii_scan.scan_files(pii_scan.repo_files()) == []
 
