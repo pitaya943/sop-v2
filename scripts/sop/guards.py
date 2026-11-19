@@ -75,6 +75,26 @@ def read_path_list(path: Path) -> list[str]:
     return entries
 
 
+def read_template_only(path: Path) -> list[tuple[str, str | None]]:
+    """Read .sop/template-only.txt as (path, marker) pairs.
+
+    A plain entry must not exist in a project. An entry with
+    ``marker:<text>`` may exist as the project's own file (e.g. its README or
+    license) but must not still contain <text>, which only the template's
+    version has.
+    """
+    entries = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.split("#", 1)[0].strip()
+        if not line:
+            continue
+        rel, _, rest = line.partition(" ")
+        rest = rest.strip()
+        marker = rest[len("marker:"):].strip() if rest.startswith("marker:") else None
+        entries.append((rel, marker or None))
+    return entries
+
+
 def decision_recorded(decision_id: str, decisions_text: str) -> bool:
     """True if ``decision_id`` (e.g. D-007) appears as a whole token.
 
@@ -132,9 +152,17 @@ def sop_ready(root: Path) -> GuardResult:
 
     # 3. Template-only paths are gone (D10, B7).
     try:
-        for rel in read_path_list(sop / "template-only.txt"):
-            if (root / rel.rstrip("/")).exists():
+        for rel, marker in read_template_only(sop / "template-only.txt"):
+            target = root / rel.rstrip("/")
+            if not target.exists():
+                continue
+            if marker is None:
                 problems.append(f"template-only path still present: {rel} (bootstrap removes it)")
+            elif target.is_file() and marker in target.read_text(encoding="utf-8", errors="replace"):
+                problems.append(
+                    f"template-only path still present: {rel} (still the template's version; "
+                    "bootstrap replaces or removes it)"
+                )
     except FileNotFoundError:
         problems.append(".sop/template-only.txt is missing")
 
