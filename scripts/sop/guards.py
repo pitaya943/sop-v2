@@ -356,8 +356,18 @@ def check_branch_ticket(ctx: Ctx) -> list[str]:
 
 
 def readonly_patterns(ctx: Ctx) -> list[str]:
+    """Fixed read-only paths, the project's spec_paths, and every template-managed
+    path from .sop/managed.txt (design doc 14.5), all read from the target branch."""
     spec = base_config(ctx).get("spec_paths") or []
-    return list(READONLY) + [p for p in spec if isinstance(p, str)]
+    managed_text = show(ctx, ctx.base, ".sop/managed.txt")
+    if managed_text is None:
+        raise CheckError(".sop/managed.txt not found on the target branch")
+    managed = []
+    for line in managed_text.splitlines():
+        entry = line.split("#", 1)[0].split()
+        if entry:
+            managed.append(entry[0] + "**" if entry[0].endswith("/") else entry[0])
+    return list(READONLY) + [p for p in spec if isinstance(p, str)] + managed
 
 
 def check_readonly_paths(ctx: Ctx) -> list[str]:

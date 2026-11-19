@@ -70,6 +70,8 @@ def repo(tmp_path):
     r.write("tests/implemented.txt", "R1\nR2\n")
     r.write("docs/spec/rules.md", "rules\n")
     r.write("AGENTS.md", "rules\n")
+    r.write(".sop/managed.txt", "scripts/sop/\ndocs/tickets/_template.md\nCLAUDE.md\n")
+    r.write("scripts/sop/guards.py", "# guard\n")
     r.commit("base")
     r.git("checkout", "-q", "-b", "milestone/M1")
     r.git("checkout", "-q", "-b", "ticket/T-001")
@@ -149,6 +151,14 @@ def test_readonly_rejects_rules_and_spec(repo):
     repo.commit()
     problems = guards.check_readonly_paths(ctx(repo))
     assert len(problems) == 2
+
+
+def test_readonly_covers_template_managed_paths(repo):
+    """A ticket PR can't edit the guards that judge it (managed paths are read-only, 14.5)."""
+    on_base(repo, "docs/tickets/T-001.md", ticket(allowed=("**",)))
+    repo.write("scripts/sop/guards.py", "# always pass\n")
+    repo.commit()
+    assert any("scripts/sop/guards.py" in p for p in guards.check_readonly_paths(ctx(repo)))
 
 
 def test_readonly_allows_an_exactly_listed_path(repo):
@@ -517,3 +527,38 @@ def test_every_check_has_a_cli_name():
     assert set(guards.CHECKS) == {"sop-ready", "branch-ticket", "readonly-paths", "path-scope", "append-only",
                                   "serial-resource", "evidence", "commit-author", "tests",
                                   "no-weakened-tests", "done-when"}
+
+
+def test_guards_workflow_has_one_job_per_check():
+    """Required status checks use job names, so every check needs a job of that name."""
+    import re
+
+    text = (REPO_ROOT / ".github" / "workflows" / "sop-guards.yml").read_text()
+    body = text.split("\njobs:\n", 1)[1]
+    # Two-space-indented keys under "jobs:" are the job names; split the body per job.
+    chunks = re.split(r"^  ([a-z][a-z-]*):\n", body, flags=re.M)[1:]
+    jobs = dict(zip(chunks[0::2], chunks[1::2]))
+    assert set(guards.CHECKS) <= set(jobs)
+    for name in guards.CHECKS:
+        assert "needs: detect" in jobs[name] or "needs: [detect" in jobs[name], name
+        assert "needs.detect.outputs.project == 'true'" in jobs[name], name
+    assert "&" not in "".join(line for line in text.splitlines() if "steps:" in line)  # no YAML anchors
+
+
+def test_guards_workflow_never_interpolates_pr_text_into_shell():
+    """The PR body and branch names reach scripts only through env (injection safety)."""
+    text = (REPO_ROOT / ".github" / "workflows" / "sop-guards.yml").read_text()
+    for line in text.splitlines():
+        if line.strip().startswith("run:") or line.startswith("          "):
+            assert "github.event.pull_request.body" not in line or line.strip().startswith("CI_PR_BODY:")
+            assert "${{ github.head_ref" not in line or line.strip().startswith("CI_HEAD_REF:")
+
+
+def test_setup_guide_lists_exactly_the_required_checks():
+    """docs/sop/setup.md step 7 is what the Owner types into the ruleset."""
+    import re
+
+    text = (REPO_ROOT / "docs" / "sop" / "setup.md").read_text()
+    step7 = text.split("## 7.", 1)[1]
+    block = re.search(r"```text\n(.*?)\n```", step7, re.S).group(1)
+    assert block.split() == list(guards.CHECKS)

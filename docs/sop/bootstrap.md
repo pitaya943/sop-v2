@@ -52,7 +52,7 @@ python3 scripts/sop/config.py
 
 ## 4. Repo 設定的查證（B1–B7）/ Repo checks (B1–B7)
 
-這些是 GitHub repo 的設定，不是檔案。結果寫進 `.sop/bootstrap.yml`，每項附證據（API 回應或指令輸出）。狀態只有 `pending`、`passed`、`failed`、`not_applicable`。
+這些是 GitHub repo 的設定，不是檔案；每一項怎麼設定見 [`setup.md`](setup.md)。結果寫進 `.sop/bootstrap.yml`，每項附證據（API 回應或指令輸出）。狀態只有 `pending`、`passed`、`failed`、`not_applicable`。
 
 | # | 檢查 | 驗證方式 |
 | --- | --- | --- |
@@ -64,7 +64,7 @@ python3 scripts/sop/config.py
 | B6 | （`modules.claude_review` 開啟時）repo secret 已設定；關閉時為 `not_applicable` | secret 名稱清單 API（不讀值） |
 | B7 | 僅範本檔案（`.sop/template-only.txt`）已移除；關閉的模組已移除 | 檔案清單比對 |
 
-> **EN:** B1–B7 check GitHub settings and the working tree, each recorded in `.sop/bootstrap.yml` with evidence and a status of pending, passed, failed or not_applicable.
+> **EN:** (How to set each one up: `setup.md`.) B1–B7 check GitHub settings and the working tree, each recorded in `.sop/bootstrap.yml` with evidence and a status of pending, passed, failed or not_applicable.
 
 ## 5. 閘門如何打開 / How the gate opens
 
