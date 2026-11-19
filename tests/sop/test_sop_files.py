@@ -57,6 +57,7 @@ def test_managed_paths_exclude_project_owned_and_template_only():
         "docs/tickets/T-001.md", "docs/milestones/M1.md", "docs/evidence/",
         "docs/project/", ".claude/skills/project/", ".github/workflows/project/",
         "scripts/project/",
+        "scripts/sop/test",  # the project's own test runner (design doc 10.2)
     ]
     template_only = guards.read_path_list(SOP / "template-only.txt")
     for path, _ in _managed():

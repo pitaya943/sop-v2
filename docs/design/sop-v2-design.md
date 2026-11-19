@@ -324,14 +324,15 @@ Context window 是短期記憶，用完即丟；要留下的事一律寫進 repo
 | `.sop/config.yml` | 專案設定值 | 啟動流程；之後只能經 Owner 核准的 PR 修改 | 必須符合 `.sop/schema.json` | 不覆寫；新版若新增欄位，sync PR 會要求填寫 |
 | `.sop/bootstrap.yml` | 啟動查證結果 | `bootstrap-project`；Owner 合併時核准 | 見第 15 節 | 不覆寫 |
 | `.sop/schema.json`、`.sop/managed.txt`、`.sop/version` | 設定格式、範本擁有的路徑、範本版本 | 範本 | 專案不改 | 覆寫 |
-| `docs/sop/**`、`.claude/skills/**`、`scripts/sop/**` | 完整流程、skills、檢查程式 | 範本 | 專案不改；要改就回饋到 sop-v2 | 覆寫 |
+| `docs/sop/**`、`.claude/skills/**`、`scripts/sop/**`（`scripts/sop/test` 除外） | 完整流程、skills、檢查程式 | 範本 | 專案不改；要改就回饋到 sop-v2 | 覆寫 |
+| `scripts/sop/test` | 測試介面（第 10.2 節） | 專案（啟動時由 `bootstrap-project` 協助寫入） | 範本內附的版本故意失敗 | 不覆寫 |
 | `docs/board.md` | ticket 狀態、各輪使用的模型 | Chief | 單一事實來源 | 不覆寫 |
 | `docs/decisions.md` | Owner 的決定 | Chief | 只增不改；推翻時新增一列並註明取代哪列 | 不覆寫 |
 | `docs/pitfalls.md` | 下一個 agent 不知道就會再犯的事 | Chief（milestone 結束時） | 上限 30 條 | 不覆寫 |
 | `docs/tickets/*.md` | 任務契約 | Chief | 完成條件只在這裡 | 不覆寫 |
 | `docs/milestones/Mx.md` | 給 Owner 的報告 | Chief | 數字可重算；每個「已驗證」都連到證據 | 不覆寫 |
 
-> **EN:** Anything that must outlive a context window goes into the repo. Template-owned files (listed in `.sop/managed.txt`: `docs/sop/**`, skills, `scripts/sop/**`, schema, version) are overwritten by `sop-sync`; project values live in `.sop/config.yml`, validated by `.sop/schema.json`; project-owned files are never overwritten.
+> **EN:** Anything that must outlive a context window goes into the repo. Template-owned files (listed in `.sop/managed.txt`: `docs/sop/**`, skills, `scripts/sop/**` except the project-implemented `scripts/sop/test`, schema, version) are overwritten by `sop-sync`; project values live in `.sop/config.yml`, validated by `.sop/schema.json`; project-owned files are never overwritten.
 
 ## 12. 升級、修正輪與證據
 
@@ -570,7 +571,7 @@ sop-v2/
     guards.py                     # 中立檢查（含 sop-ready）
     compare_junit.py              # no-weakened-tests、done-when
     bootstrap                     # 不使用 Claude 時的備用互動腳本
-    test                          # 測試介面；預設失敗
+    test                          # 測試介面；預設失敗（專案擁有，不被 sop-sync 覆寫）
 ```
 
 > **EN:** The template repo root looks like a project; only paths in `.sop/template-only.txt` (README, LICENSE, design doc, guard tests, self CI) are removed at bootstrap. Config, schema, bootstrap state, the managed-path list and the version live under `.sop/`.

@@ -14,7 +14,12 @@
 .sop/managed.txt
 .sop/template-only.txt
 .sop/version
-scripts/sop/
+# scripts/sop/ is listed file by file: scripts/sop/test is implemented by each
+# project (design doc 10.2), so it must never be overwritten by sop-sync.
+scripts/sop/config.py
+scripts/sop/guards.py
+scripts/sop/compare_junit.py
+scripts/sop/bootstrap
 
 # --- core: process docs and templates ---
 CLAUDE.md
