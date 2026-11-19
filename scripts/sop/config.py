@@ -170,8 +170,8 @@ def _parse_scalar(value: str, number: int) -> Any:
         return "".join(out)
     if value[0] == "'":
         return value[1:-1].replace("''", "'")
-    if value == "[]":
-        return []
+    if value.startswith("["):
+        return _parse_flow_list(value, number)
     if value in ("null",):
         return None
     if value == "true":
@@ -206,6 +206,63 @@ def _parse_scalar(value: str, number: int) -> Any:
     if ": " in value or value.endswith(":"):
         raise ConfigSyntaxError(number, f"text containing ': ' must be quoted: \"{value}\"")
     return value
+
+
+def _parse_flow_list(value: str, number: int) -> list:
+    """Parse a one-line list such as ``[T-010, T-011]`` or ``[]``.
+
+    Only scalars are allowed inside; each item follows the same rules as a
+    value on its own (so ``[yes]`` and ``[**]`` are rejected like ``yes`` and
+    ``**``). Nested lists or mappings, empty items, and text after the closing
+    bracket are errors. Quoted items may contain commas.
+    """
+    items: list[str] = []
+    current: list[str] = []
+    quote = ""
+    i = 1
+    while True:
+        if i >= len(value):
+            raise ConfigSyntaxError(number, "unterminated list; close it with ']' on the same line")
+        c = value[i]
+        if quote:
+            current.append(c)
+            if quote == '"' and c == "\\":
+                current.append(value[i + 1:i + 2])
+                i += 2
+                continue
+            if c == quote:
+                if quote == "'" and value[i + 1:i + 2] == "'":
+                    current.append("'")
+                    i += 2
+                    continue
+                quote = ""
+        elif c in ("'", '"') and not "".join(current).strip():
+            quote = c
+            current.append(c)
+        elif c in "[{":
+            raise ConfigSyntaxError(number, "nested lists or mappings are not supported inside [ ]")
+        elif c == ",":
+            items.append("".join(current))
+            current = []
+        elif c == "]":
+            items.append("".join(current))
+            break
+        else:
+            current.append(c)
+        i += 1
+    if value[i + 1:].strip():
+        raise ConfigSyntaxError(number, "unexpected text after ']'")
+    if len(items) == 1 and not items[0].strip():
+        return []
+    result = []
+    for raw in items:
+        item = raw.strip()
+        if not item:
+            raise ConfigSyntaxError(number, "empty item in list; remove the extra ','")
+        if item[0] in ("'", '"') and _closing_quote(item, number) != len(item) - 1:
+            raise ConfigSyntaxError(number, "unexpected text after the closing quote")
+        result.append(_parse_scalar(item, number))
+    return result
 
 
 class _Parser:
