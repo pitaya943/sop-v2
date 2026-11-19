@@ -1,0 +1,223 @@
+#!/usr/bin/env python3
+"""Update a project to a newer (or older) version of its template (design doc 14.5).
+
+Standard library only. Used by the sop-sync skill; also runnable by hand.
+
+    scripts/sop/sync <ref> [--source owner/repo | --url URL]
+
+What it does, from the template at <ref> (a tag such as v2.1.0):
+  * overwrites every template-owned path in the NEW .sop/managed.txt, skipping
+    modules that are off in .sop/config.yml (and removing their files);
+  * removes template-owned paths that the new version no longer lists;
+  * rebuilds AGENTS.md from the new version, keeping the project section;
+  * rebuilds .sop/config.yml from the new version's file (with its comments),
+    keeping every existing value; fields the new version adds stay null, so
+    sop-ready fails until they are answered (no defaults, P2);
+  * never touches project-owned files (board, decisions, tickets,
+    scripts/sop/test, ...), never commits, never pushes (D35, D36).
+
+Rolling back is the same command with the previous tag.
+"""
+
+from __future__ import annotations
+
+import argparse
+import subprocess
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import config  # noqa: E402
+
+DEFAULT_ROOT = Path(__file__).resolve().parents[2]
+BEGIN, END = "<!-- sop:project:begin -->", "<!-- sop:project:end -->"
+
+
+class SyncError(Exception):
+    """The sync can't continue; nothing has been changed when this is raised early."""
+
+
+def _git(root: Path, *args: str, check: bool = True, binary: bool = False):
+    r = subprocess.run(["git", *args], cwd=root, capture_output=True, text=not binary)
+    if check and r.returncode != 0:
+        err = r.stderr if not binary else r.stderr.decode("utf-8", "replace")
+        raise SyncError(f"git {' '.join(args[:2])} failed: {err.strip()}")
+    return r
+
+
+def fetch(root: Path, url: str, ref: str) -> str:
+    """Fetch <ref> from the template; returns the commit to read from."""
+    _git(root, "fetch", "--quiet", "--depth", "1", url, f"refs/tags/{ref}:refs/sop-sync/{ref}")
+    return f"refs/sop-sync/{ref}"
+
+
+def managed(text: str) -> list[tuple[str, str | None]]:
+    """(path, module or None) for each entry of a managed.txt text."""
+    entries = []
+    for line in text.splitlines():
+        parts = line.split("#", 1)[0].split()
+        if parts:
+            tags = [t[len("module:"):] for t in parts[1:] if t.startswith("module:")]
+            entries.append((parts[0], tags[0] if tags else None))
+    return entries
+
+
+def _tree(root: Path, rev: str, path: str) -> list[str]:
+    out = _git(root, "ls-tree", "-r", "--name-only", rev, "--", path.rstrip("/")).stdout
+    return [p for p in out.splitlines() if p]
+
+
+def _blob(root: Path, rev: str, path: str) -> bytes:
+    return _git(root, "show", f"{rev}:{path}", binary=True).stdout
+
+
+def _local_files(root: Path, entry: str) -> list[str]:
+    target = root / entry.rstrip("/")
+    if target.is_dir():
+        return sorted(str(p.relative_to(root)) for p in target.rglob("*") if p.is_file())
+    return [entry] if target.is_file() else []
+
+
+def _remove(root: Path, rel: str) -> None:
+    target = root / rel
+    target.unlink()
+    parent = target.parent
+    while parent != root and parent.is_dir() and not any(parent.iterdir()):
+        parent.rmdir()
+        parent = parent.parent
+
+
+def _merge_agents(local: str, new: str) -> str:
+    if local.count(BEGIN) != 1 or local.count(END) != 1:
+        raise SyncError("the project's AGENTS.md must contain the project-section markers exactly once")
+    if new.count(BEGIN) != 1 or new.count(END) != 1:
+        raise SyncError("the template's AGENTS.md must contain the project-section markers exactly once")
+    section = local.split(BEGIN, 1)[1].split(END, 1)[0]
+    head, rest = new.split(BEGIN, 1)
+    return head + BEGIN + section + END + rest.split(END, 1)[1]
+
+
+def _merge_config(local_text: str, new_text: str) -> tuple[str, list[str]]:
+    """New version's config file with the project's values written in.
+
+    Returns (text, fields the new version added, which are left null).
+    """
+    import importlib.machinery
+    import importlib.util
+
+    loader = importlib.machinery.SourceFileLoader(
+        "sop_bootstrap", str(Path(__file__).resolve().parent / "bootstrap"))
+    spec = importlib.util.spec_from_loader("sop_bootstrap", loader)
+    bootstrap = importlib.util.module_from_spec(spec)
+    loader.exec_module(bootstrap)
+
+    local = config.parse_yaml(local_text)
+    new = config.parse_yaml(new_text)
+
+    def leaves(node, prefix=""):
+        for key, value in node.items():
+            path = f"{prefix}.{key}" if prefix else key
+            if isinstance(value, dict):
+                yield from leaves(value, path)
+            else:
+                yield path
+
+    values, added = {}, []
+    for path in leaves(new):
+        try:
+            values[path] = bootstrap.get_path(local, path)
+        except (KeyError, TypeError):
+            added.append(path)
+    values = {k: v for k, v in values.items() if v is not None}
+    return bootstrap.set_values(new_text, values), added
+
+
+def sync(root: Path, url: str, ref: str) -> dict:
+    """Apply template <ref> to the project at root. Returns a report."""
+    rev = fetch(root, url, ref)
+    cfg = config.load_yaml_file(root / ".sop" / "config.yml")
+    modules = cfg.get("modules") or {}
+    old_entries = managed((root / ".sop" / "managed.txt").read_text(encoding="utf-8"))
+    new_entries = managed(_blob(root, rev, ".sop/managed.txt").decode("utf-8"))
+    report = {"updated": [], "removed": [], "added_fields": []}
+
+    new_paths = {p for p, _ in new_entries}
+    for path, _ in old_entries:
+        if path not in new_paths:
+            for rel in _local_files(root, path):
+                _remove(root, rel)
+                report["removed"].append(f"{rel} (no longer in the template)")
+
+    for path, module in new_entries:
+        if module is not None and modules.get(module) is not True:
+            for rel in _local_files(root, path):
+                _remove(root, rel)
+                report["removed"].append(f"{rel} (module {module} is off)")
+            continue
+        wanted = _tree(root, rev, path)
+        for rel in _local_files(root, path):
+            if rel not in wanted:
+                _remove(root, rel)
+                report["removed"].append(f"{rel} (removed in {ref})")
+        for rel in wanted:
+            target = root / rel
+            data = _blob(root, rev, rel)
+            if not target.exists() or target.read_bytes() != data:
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(data)
+                report["updated"].append(rel)
+            mode = _git(root, "ls-tree", rev, "--", rel).stdout.split()[0]
+            target.chmod(0o755 if mode == "100755" else 0o644)
+
+    agents = root / "AGENTS.md"
+    merged = _merge_agents(agents.read_text(encoding="utf-8"), _blob(root, rev, "AGENTS.md").decode("utf-8"))
+    if merged != agents.read_text(encoding="utf-8"):
+        agents.write_text(merged, encoding="utf-8")
+        report["updated"].append("AGENTS.md (template sections)")
+
+    cfg_path = root / ".sop" / "config.yml"
+    text, added = _merge_config(cfg_path.read_text(encoding="utf-8"),
+                                _blob(root, rev, ".sop/config.yml").decode("utf-8"))
+    if text != cfg_path.read_text(encoding="utf-8"):
+        cfg_path.write_text(text, encoding="utf-8")
+        report["updated"].append(".sop/config.yml (new layout, values kept)")
+    report["added_fields"] = added
+    _git(root, "update-ref", "-d", rev, check=False)
+    return report
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    parser.add_argument("ref", help="template tag, e.g. v2.1.0")
+    parser.add_argument("--root", type=Path, default=DEFAULT_ROOT)
+    src = parser.add_mutually_exclusive_group()
+    src.add_argument("--source", help="owner/repo (default: template.source in .sop/config.yml)")
+    src.add_argument("--url", help="any git URL or local path for the template")
+    args = parser.parse_args(argv)
+    try:
+        url = args.url
+        if not url:
+            source = args.source or config.load_yaml_file(args.root / ".sop" / "config.yml")["template"]["source"]
+            if not source:
+                raise SyncError("template.source is not set")
+            url = f"https://github.com/{source}.git"
+        report = sync(args.root, url, args.ref)
+    except (SyncError, config.ConfigSyntaxError) as exc:
+        print(f"sop-sync: {exc}", file=sys.stderr)
+        return 1
+    for rel in report["updated"]:
+        print(f"updated  {rel}")
+    for rel in report["removed"]:
+        print(f"removed  {rel}")
+    if report["added_fields"]:
+        print("\nThe new version adds config fields with no value yet (no defaults):")
+        for field in report["added_fields"]:
+            print(f"  - {field}")
+        print("Answer them (the sop-sync skill asks one at a time), then run: scripts/sop/bootstrap write <answers.json>")
+    print(f"\nNext: review the diff, commit on branch sop/sync-{args.ref}, push, and open a pull request to main.")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

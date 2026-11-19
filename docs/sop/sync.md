@@ -49,9 +49,17 @@
 
 **回滾：** 用同一流程同步回前一個 tag。
 
+**手動執行（不使用 Claude 時）：** 在 `sop/sync-<版本>` 分支執行下面的指令，依輸出回答新增的欄位（`scripts/sop/bootstrap write`），再 commit、推送並開 PR。
+
+```bash
+scripts/sop/sync v2.1.0
+```
+
+`scripts/sop/sync` 會覆寫範本擁有的路徑（只包含已開啟的模組）、移除新版不再列出的路徑、用新版的 `AGENTS.md` 重建範本段落並保留專案段落，並以新版的 `config.yml` 為底寫回既有的值；新版新增的欄位保持 `null`，`sop-ready` 會在回答之前失敗。它不 commit、也不推送。
+
 **為什麼不需要三方合併：** 範本擁有的路徑在專案中是唯讀的（`readonly-paths`），專案不會改它們，所以直接覆寫不會蓋掉專案的修改。
 
-> **EN:** The template tags releases. In the project, the Owner runs the `sop-sync` skill: fetch the tag from `template.source`, overwrite managed paths for enabled modules only, update the template sections of `AGENTS.md` and `.sop/version`, ask any new config questions (no defaults), and open a `sop/sync-<version>` PR for the Owner to merge. Roll back by syncing the previous tag. No three-way merge is needed because managed paths are read-only in projects.
+> **EN:** The template tags releases. In the project, the Owner runs the `sop-sync` skill: fetch the tag from `template.source`, overwrite managed paths for enabled modules only, update the template sections of `AGENTS.md` and `.sop/version`, ask any new config questions (no defaults), and open a `sop/sync-<version>` PR for the Owner to merge. Roll back by syncing the previous tag. Without Claude, run `scripts/sop/sync <tag>` on a `sop/sync-<tag>` branch, answer any new fields with `scripts/sop/bootstrap write`, then commit, push and open the PR; the script never commits or pushes. No three-way merge is needed because managed paths are read-only in projects.
 
 ## 4. 開啟或關閉模組 / Turning a module on or off
 
