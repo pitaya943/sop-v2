@@ -6,6 +6,19 @@
     "name": "sop-v2 contributors"
   },
   "license": "MIT-0",
-  "keywords": ["skills", "tdd", "verification", "code-review", "agents", "guardrails"],
-  "skills": []
+  "keywords": [
+    "skills",
+    "tdd",
+    "verification",
+    "code-review",
+    "agents",
+    "guardrails"
+  ],
+  "skills": [
+    "./skills/setup",
+    "./skills/build",
+    "./skills/verify",
+    "./skills/tdd",
+    "./skills/evidence"
+  ]
 }
