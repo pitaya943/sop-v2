@@ -1,0 +1,42 @@
+# Template-owned paths (design doc 11, 14.5). sop-sync overwrites them; projects
+# must not edit them (CI readonly-paths). Project-owned files are never listed here.
+#
+# Format: <path>  [module:<name>]
+#   - One path per line, relative to the repo root. A trailing "/" marks a directory.
+#   - A path without a module tag is core and always synced.
+#   - "module:<name>" ties the path to the optional module modules.<name> in
+#     .sop/config.yml; bootstrap deletes it and sop-sync skips it while the module is off.
+#
+# Some paths are created in later stages (S1-S3); listing them now fixes ownership early.
+
+# --- core: config format and gate ---
+.sop/schema.json
+.sop/managed.txt
+.sop/template-only.txt
+.sop/version
+scripts/sop/
+
+# --- core: process docs and templates ---
+CLAUDE.md
+docs/sop/
+docs/tickets/_template.md
+docs/milestones/README.md
+docs/milestones/report-template.md
+.github/ISSUE_TEMPLATE/plan-approval.md
+.github/ISSUE_TEMPLATE/needs-owner.md
+.github/PULL_REQUEST_TEMPLATE.md
+.github/workflows/sop-guards.yml
+
+# --- core: skills ---
+.claude/skills/bootstrap-project/
+.claude/skills/sop-sync/
+.claude/skills/plan-milestone/
+.claude/skills/build-ticket/
+.claude/skills/verify-ticket/
+.claude/skills/ask-owner/
+.claude/skills/milestone-report/
+
+# --- optional modules ---
+.claude/skills/learning/  module:learning
+.github/workflows/modules/claude-review.yml  module:claude_review
+.github/workflows/modules/docs-lint.yml  module:docs_lint

@@ -1,0 +1,8 @@
+# Paths that belong to sop-v2's own development, not to projects (D10, design doc 14.4).
+# bootstrap-project deletes them; sop-ready fails while any of them still exists.
+# One path per line, relative to the repo root. A trailing "/" marks a directory.
+docs/design/
+tests/sop/
+.github/workflows/self-ci.yml
+README.md
+LICENSE

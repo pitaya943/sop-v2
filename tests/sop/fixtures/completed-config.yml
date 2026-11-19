@@ -1,0 +1,27 @@
+# A completed configuration with obviously fictional values, used by the tests.
+project:
+  name: Example Project
+  goal: Show that a filled-in configuration passes the bootstrap gate.
+owner:
+  display_name: Example Owner
+  github: example-owner
+bot:
+  github: example-bot
+  github_id: 1000001
+doc_language: en
+max_parallel: 2
+spec_paths:
+  - "docs/spec/**"
+serial_resources:
+  - db-schema
+append_only_files: []
+sensitive_areas:
+  - permissions
+modules:
+  learning: true
+  claude_review: false
+  docs_lint: false
+template:
+  source: example-owner/example-template
+overrides:
+  disabled_guards: []

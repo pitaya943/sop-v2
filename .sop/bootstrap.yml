@@ -1,0 +1,29 @@
+# Bootstrap gate state (design doc 15). Written by the bootstrap-project skill on the
+# sop/bootstrap branch; the gate opens only when the Owner merges that PR.
+#
+# ready: true only after every check below is "passed" or "not_applicable".
+# status: one of pending | passed | failed | not_applicable
+# evidence: API response or command output proving the status ("" while pending).
+ready: false
+checks:
+  B1:  # current session's GitHub identity equals bot.github
+    status: pending
+    evidence: ""
+  B2:  # machine account is a collaborator with Write (not Admin)
+    status: pending
+    evidence: ""
+  B3:  # main has a ruleset: the machine account cannot update it
+    status: pending
+    evidence: ""
+  B4:  # milestone/* has a ruleset: pull request and green CI required
+    status: pending
+    evidence: ""
+  B5:  # scripts/sop/test is implemented and writes JUnit XML
+    status: pending
+    evidence: ""
+  B6:  # (claude_review module on) the repo secret is set
+    status: pending
+    evidence: ""
+  B7:  # template-only paths and disabled modules are removed
+    status: pending
+    evidence: ""
