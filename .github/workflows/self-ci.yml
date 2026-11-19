@@ -37,7 +37,7 @@ jobs:
       - name: Install test dependencies
         run: python -m pip install -r tests/sop/requirements.txt
       - name: Run tests (no network access needed)
-        run: python -m pytest tests/sop -q -p no:cacheprovider
+        run: python -m pytest tests -q -p no:cacheprovider
 
   personal-data:
     name: personal-data scan
@@ -59,16 +59,28 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: python tests/sop/pii_scan.py --commits "$BASE_SHA..$HEAD_SHA"
 
+  skills:
+    name: plugin and SKILL.md check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Check plugin manifests and every SKILL.md
+        run: python scripts/check_skills.py
+
   self-ci:
     name: self-ci
     if: always()
-    needs: [tests, personal-data]
+    needs: [tests, personal-data, skills]
     runs-on: ubuntu-latest
     steps:
       - name: Require every job to succeed
         env:
           TESTS: ${{ needs.tests.result }}
           SCAN: ${{ needs.personal-data.result }}
+          SKILLS: ${{ needs.skills.result }}
         run: |
-          echo "tests: $TESTS, personal-data scan: $SCAN"
-          test "$TESTS" = success && test "$SCAN" = success
+          echo "tests: $TESTS, personal-data scan: $SCAN, skills: $SKILLS"
+          test "$TESTS" = success && test "$SCAN" = success && test "$SKILLS" = success

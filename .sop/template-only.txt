@@ -7,5 +7,5 @@
 docs/design/
 tests/sop/
 .github/workflows/self-ci.yml
-README.md  marker:一個 harness 的 repo 範本
+README.md  marker:一組小而可組合的 skill
 LICENSE  marker:sop-v2 contributors

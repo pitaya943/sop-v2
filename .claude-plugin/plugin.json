@@ -1,0 +1,11 @@
+{
+  "name": "sop-v2",
+  "version": "3.0.0-dev.0",
+  "description": "Small, composable skills for developing with agents under human review: plan, build red-green, verify cold, report. Guardrails are opt-in recipes, not a gate.",
+  "author": {
+    "name": "sop-v2 contributors"
+  },
+  "license": "MIT-0",
+  "keywords": ["skills", "tdd", "verification", "code-review", "agents", "guardrails"],
+  "skills": []
+}

@@ -1,0 +1,16 @@
+{
+  "name": "sop-v2",
+  "owner": {
+    "name": "sop-v2 contributors"
+  },
+  "description": "The sop-v2 skill pack as an installable Claude Code plugin.",
+  "plugins": [
+    {
+      "name": "sop-v2",
+      "source": "./",
+      "description": "Small, composable skills for developing with agents under human review.",
+      "category": "engineering",
+      "keywords": ["skills", "tdd", "verification", "agents"]
+    }
+  ]
+}
