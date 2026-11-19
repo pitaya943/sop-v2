@@ -56,6 +56,8 @@ ACCOUNT_RE = re.compile(r"github\.com/([A-Za-z0-9](?:[A-Za-z0-9-]{0,38}))", re.I
 # "-" (so emails and action refs such as "checkout@v4" are not mentions).
 MENTION_RE = re.compile(r"(?<![\w./@-])@([A-Za-z0-9](?:[A-Za-z0-9-]{0,38}))")
 PY_DECORATOR_RE = re.compile(r"^\s*@[A-Za-z_][\w.]*")
+# CSS at-rules in .html / .css files are not mentions.
+CSS_AT_RULES = {"media", "import", "font-face", "keyframes", "supports", "page", "charset", "layer", "container"}
 # A CLAUDE.md line that is only "@<path>" imports that file; it is not a mention.
 CLAUDE_IMPORT_RE = re.compile(r"^@[\w./-]+\.md\s*$")
 
@@ -75,7 +77,10 @@ def scan_text(text: str, source: str, python: bool = False) -> list[str]:
             continue  # a Python decorator line is not a mention
         if source.endswith("CLAUDE.md") and CLAUDE_IMPORT_RE.match(line):
             continue
+        css = source.endswith((".html", ".css"))
         for m in MENTION_RE.finditer(line):
+            if css and m.group(1).lower() in CSS_AT_RULES:
+                continue
             if m.group(1).lower() not in ALLOWED_MENTIONS:
                 findings.append(f"{source}:{number}: @-mention {m.group(0)!r}")
     return findings

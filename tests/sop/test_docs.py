@@ -25,6 +25,9 @@ SCHEMA = json.loads((SOP / "schema.json").read_text())
 def shipped_docs() -> list[Path]:
     """AGENTS.md plus every Markdown file under a template-managed path."""
     files = {REPO_ROOT / "AGENTS.md"}
+    # Project-owned skeletons shipped with the template (S1c).
+    for rel in ("docs/board.md", "docs/decisions.md", "docs/pitfalls.md", "docs/milestones/README.md"):
+        files.add(REPO_ROOT / rel)
     for rel in guards.read_path_list(SOP / "managed.txt"):
         target = REPO_ROOT / rel
         if rel.endswith("/") and target.is_dir():
