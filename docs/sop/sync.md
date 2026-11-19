@@ -38,7 +38,7 @@
 ## 3. 更新流程：`sop-sync` / The update: `sop-sync`
 
 1. 範本合併改進後打 semver tag（例如 `v2.1.0`），release notes 寫明是否新增設定欄位。
-2. 專案中由 Owner 開一個 session 執行 `sop-sync` skill（或手動觸發同名 workflow）：
+2. 專案中由 Owner 開一個 session 執行 `sop-sync` skill（不提供 workflow：用 `GITHUB_TOKEN` 開的 PR 不會觸發其他 workflow，必要檢查永遠不會出現）：
    - 從 `template.source` 抓指定 tag。
    - 用新版覆寫 `.sop/managed.txt` 列出的路徑，**只包含已開啟的模組**（`module:<name>` 標註）。
    - 更新 `AGENTS.md` 標記以外的範本段落。

@@ -70,7 +70,9 @@ def repo(tmp_path):
     r.write("tests/implemented.txt", "R1\nR2\n")
     r.write("docs/spec/rules.md", "rules\n")
     r.write("AGENTS.md", "rules\n")
-    r.write(".sop/managed.txt", "scripts/sop/\ndocs/tickets/_template.md\nCLAUDE.md\n")
+    r.write(".sop/managed.txt", ".sop/managed.txt\nscripts/sop/\ndocs/tickets/_template.md\nCLAUDE.md\n"
+            ".claude/skills/learning/  module:learning\n")
+    r.write(".claude/skills/learning/SKILL.md", "learning\n")
     r.write("scripts/sop/guards.py", "# guard\n")
     r.commit("base")
     r.git("checkout", "-q", "-b", "milestone/M1")
@@ -562,3 +564,54 @@ def test_setup_guide_lists_exactly_the_required_checks():
     step7 = text.split("## 7.", 1)[1]
     block = re.search(r"```text\n(.*?)\n```", step7, re.S).group(1)
     assert block.split() == list(guards.CHECKS)
+
+
+# ---------------------------------------------------------------------------
+# Bootstrap and sync PRs may change only their own paths (S3, decision 5)
+# ---------------------------------------------------------------------------
+
+
+def _special_pr(repo, branch):
+    repo.git("checkout", "-q", "main")
+    repo.git("checkout", "-q", "-b", branch)
+    return ctx(repo, head_ref=branch, base_ref="main")
+
+
+def test_bootstrap_pr_may_fill_config_and_remove_disabled_modules(repo):
+    c = _special_pr(repo, "sop/bootstrap")
+    repo.write(".sop/bootstrap.yml", "ready: true\n")
+    repo.write("README.md", "# Example Project\n")
+    repo.git("rm", "-q", "-r", ".claude/skills/learning")
+    repo.commit()
+    assert guards.check_path_scope(c) == []
+
+
+def test_bootstrap_pr_may_not_change_template_owned_files(repo):
+    c = _special_pr(repo, "sop/bootstrap")
+    repo.write("scripts/sop/guards.py", "# weakened\n")
+    repo.commit()
+    assert guards.check_path_scope(c) == [
+        "scripts/sop/guards.py (M): a bootstrap PR may not change template-owned paths "
+        "(it may only delete paths of disabled modules)"
+    ]
+
+
+def test_sync_pr_may_change_only_managed_paths(repo):
+    c = _special_pr(repo, "sop/sync-v2.1.0")
+    repo.write("scripts/sop/guards.py", "# new version\n")
+    repo.write("AGENTS.md", "rules v2\n")
+    repo.commit()
+    assert guards.check_path_scope(c) == []
+    repo.write("src/a.py", "sneaked in\n")
+    repo.commit()
+    assert guards.check_path_scope(c) == [
+        "src/a.py (M): a sop-sync PR may change only template-owned paths, AGENTS.md and .sop/config.yml"
+    ]
+
+
+def test_sync_pr_may_add_paths_the_new_version_manages(repo):
+    c = _special_pr(repo, "sop/sync-v2.1.0")
+    repo.write(".sop/managed.txt", (repo.path / ".sop/managed.txt").read_text() + "docs/sop/new.md\n")
+    repo.write("docs/sop/new.md", "new\n")
+    repo.commit()
+    assert guards.check_path_scope(c) == []

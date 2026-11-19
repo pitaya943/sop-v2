@@ -1,8 +1,11 @@
 # Paths that belong to sop-v2's own development, not to projects (D10, design doc 14.4).
 # bootstrap-project deletes them; sop-ready fails while any of them still exists.
 # One path per line, relative to the repo root. A trailing "/" marks a directory.
+#
+# "marker:<text>" means the project may keep its own file at that path (its
+# README, its license), but not the template's version, which contains <text>.
 docs/design/
 tests/sop/
 .github/workflows/self-ci.yml
-README.md
-LICENSE
+README.md  marker:一個 harness 的 repo 範本
+LICENSE  marker:sop-v2 contributors

@@ -13,6 +13,7 @@ from conftest import FIXTURES, REPO_ROOT
 
 GUARDS = REPO_ROOT / "scripts" / "sop" / "guards.py"
 TEMPLATE_ONLY = guards.read_path_list(REPO_ROOT / ".sop" / "template-only.txt")
+MARKERS = dict(guards.read_template_only(REPO_ROOT / ".sop" / "template-only.txt"))
 
 
 def run_cli(root):
@@ -90,9 +91,27 @@ def test_leftover_template_only_path_fails(make_project, rel):
         target.mkdir(parents=True)
     else:
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text("leftover\n")
+        target.write_text((REPO_ROOT / rel).read_text())  # the template's own version
     result = guards.sop_ready(root)
-    assert result.problems == [f"template-only path still present: {rel} (bootstrap removes it)"]
+    assert len(result.problems) == 1
+    assert result.problems[0].startswith(f"template-only path still present: {rel} ")
+
+
+@pytest.mark.parametrize("rel, text", [
+    ("README.md", "# Example Project\n\nA project README written at bootstrap.\n"),
+    ("LICENSE", "Apache License\nVersion 2.0, January 2004\n"),
+])
+def test_project_may_replace_marker_entries(make_project, rel, text):
+    """README.md and LICENSE may exist as the project's own versions (S3 fix)."""
+    root = make_project()
+    (root / rel).write_text(text)
+    assert guards.sop_ready(root).problems == []
+
+
+def test_marker_entries_carry_template_specific_text():
+    for rel, marker in MARKERS.items():
+        if marker:
+            assert marker in (REPO_ROOT / rel).read_text(), rel
 
 
 def test_template_only_list_matches_design():

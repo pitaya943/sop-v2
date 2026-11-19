@@ -75,6 +75,26 @@ def read_path_list(path: Path) -> list[str]:
     return entries
 
 
+def read_template_only(path: Path) -> list[tuple[str, str | None]]:
+    """Read .sop/template-only.txt as (path, marker) pairs.
+
+    A plain entry must not exist in a project. An entry with
+    ``marker:<text>`` may exist as the project's own file (e.g. its README or
+    license) but must not still contain <text>, which only the template's
+    version has.
+    """
+    entries = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.split("#", 1)[0].strip()
+        if not line:
+            continue
+        rel, _, rest = line.partition(" ")
+        rest = rest.strip()
+        marker = rest[len("marker:"):].strip() if rest.startswith("marker:") else None
+        entries.append((rel, marker or None))
+    return entries
+
+
 def decision_recorded(decision_id: str, decisions_text: str) -> bool:
     """True if ``decision_id`` (e.g. D-007) appears as a whole token.
 
@@ -132,9 +152,17 @@ def sop_ready(root: Path) -> GuardResult:
 
     # 3. Template-only paths are gone (D10, B7).
     try:
-        for rel in read_path_list(sop / "template-only.txt"):
-            if (root / rel.rstrip("/")).exists():
+        for rel, marker in read_template_only(sop / "template-only.txt"):
+            target = root / rel.rstrip("/")
+            if not target.exists():
+                continue
+            if marker is None:
                 problems.append(f"template-only path still present: {rel} (bootstrap removes it)")
+            elif target.is_file() and marker in target.read_text(encoding="utf-8", errors="replace"):
+                problems.append(
+                    f"template-only path still present: {rel} (still the template's version; "
+                    "bootstrap replaces or removes it)"
+                )
     except FileNotFoundError:
         problems.append(".sop/template-only.txt is missing")
 
@@ -385,7 +413,51 @@ def check_readonly_paths(ctx: Ctx) -> list[str]:
     ]
 
 
+def managed_entries(text: str | None) -> list[tuple[str, bool]]:
+    """(glob, is_module_path) for each entry of a managed.txt text."""
+    entries = []
+    for line in (text or "").splitlines():
+        parts = line.split("#", 1)[0].split()
+        if parts:
+            glob = parts[0] + "**" if parts[0].endswith("/") else parts[0]
+            entries.append((glob, any(t.startswith("module:") for t in parts[1:])))
+    return entries
+
+
+def check_special_pr_scope(ctx: Ctx) -> list[str] | None:
+    """Bootstrap and sop-sync PRs may change only their own paths (S3).
+
+    * sop/bootstrap: anything the project owns, but no template-owned path,
+      except deleting the paths of a disabled module.
+    * sop/sync-*: only template-owned paths (old or new version), AGENTS.md
+      (its template sections) and .sop/config.yml (new fields).
+    Returns None for any other branch.
+    """
+    if ctx.head_ref == "sop/bootstrap":
+        entries = managed_entries(show(ctx, ctx.base, ".sop/managed.txt"))
+        bad = []
+        for status, path in changed_files(ctx):
+            hits = [is_module for glob, is_module in entries if path_matches(glob, path)]
+            if hits and not (status == "D" and any(hits)):
+                bad.append(f"{path} ({status}): a bootstrap PR may not change template-owned paths "
+                           "(it may only delete paths of disabled modules)")
+        return bad
+    if ctx.head_ref.startswith("sop/sync-"):
+        entries = managed_entries(show(ctx, ctx.base, ".sop/managed.txt"))
+        entries += managed_entries(show(ctx, ctx.head, ".sop/managed.txt"))
+        allowed = {"AGENTS.md", ".sop/config.yml"}
+        return [
+            f"{path} ({status}): a sop-sync PR may change only template-owned paths, AGENTS.md and .sop/config.yml"
+            for status, path in changed_files(ctx)
+            if path not in allowed and not any(path_matches(glob, path) for glob, _ in entries)
+        ]
+    return None
+
+
 def check_path_scope(ctx: Ctx) -> list[str]:
+    special = check_special_pr_scope(ctx)
+    if special is not None:
+        return special
     tc = ticket_context(ctx)
     if tc is None:
         return []
