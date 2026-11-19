@@ -574,6 +574,27 @@ API_PAGE = 100
 API_MAX_COMMITS = 250  # GitHub lists at most 250 commits per PR; beyond that we can't check
 
 
+def machine_account(ctx: Ctx) -> str:
+    """bot.github from the target branch's config.
+
+    The one exception is the bootstrap PR: before it merges, the target
+    branch still holds the template's unfilled config, so the PR's own config
+    is the only source. Only the Owner can merge that PR (S4 trial finding).
+    """
+    bot = (base_config(ctx).get("bot") or {}).get("github")
+    if bot:
+        return bot
+    if ctx.head_ref == "sop/bootstrap":
+        text = show(ctx, ctx.head, ".sop/config.yml")
+        try:
+            bot = (config.parse_yaml(text or "").get("bot") or {}).get("github")
+        except config.ConfigSyntaxError:
+            bot = None
+        if bot:
+            return bot
+    raise CheckError("bot.github is not set in .sop/config.yml on the target branch")
+
+
 def check_commit_author(commits: list[dict], bot_login: str) -> list[str]:
     """commits: objects from GET /repos/{repo}/pulls/{n}/commits. Judged by author.login."""
     if not commits:
@@ -661,7 +682,7 @@ def run_check(name: str, ctx: Ctx, env: dict | None = None) -> tuple[int, list[s
                     token, repo, number = env.get("GITHUB_TOKEN"), env.get("GITHUB_REPOSITORY"), env.get("CI_PR_NUMBER")
                     if not (token and repo and number):
                         raise CheckError("missing GITHUB_TOKEN / GITHUB_REPOSITORY / CI_PR_NUMBER")
-                    bot = base_config(ctx)["bot"]["github"]
+                    bot = machine_account(ctx)
                     commits = fetch_pr_commits(repo, int(number), token, env.get("GITHUB_API_URL", "https://api.github.com"))
                     problems = check_commit_author(commits, bot)
             elif name == "tests":
@@ -669,6 +690,12 @@ def run_check(name: str, ctx: Ctx, env: dict | None = None) -> tuple[int, list[s
             elif name == "no-weakened-tests":
                 base = compare_junit.load_results(env.get("SOP_BASE_JUNIT", ""))
                 head = compare_junit.load_results(env.get("SOP_HEAD_JUNIT", ""))
+                not_bootstrapped = not (base_config(ctx).get("bot") or {}).get("github")
+                if base is None and head is not None and ctx.head_ref == "sop/bootstrap" and not_bootstrapped:
+                    # Before bootstrap, main still has the template's failing stub:
+                    # there is no baseline, and so nothing could have been weakened.
+                    return 0, [f"[{name}] no baseline: the target branch still has the template's stub "
+                               "test interface (bootstrap PR)", f"[{name}] PASS"]
                 problems = compare_junit.compare_results(base, head)
             elif name == "done-when":
                 results = compare_junit.load_results(env.get("SOP_JUNIT", "build/sop/junit.xml"))
@@ -677,6 +704,8 @@ def run_check(name: str, ctx: Ctx, env: dict | None = None) -> tuple[int, list[s
                 problems = globals()["check_" + name.replace("-", "_")](ctx)
         except CheckError as exc:
             problems = [f"can't check: {exc}"]
+        except Exception as exc:  # noqa: BLE001  fail closed, with a message instead of a traceback
+            problems = [f"can't check: unexpected error {type(exc).__name__}: {exc}"]
     lines = [f"[{name}] {p}" for p in problems]
     lines.append(f"[{name}] {'FAIL: ' + str(len(problems)) + ' problem(s)' if problems else 'PASS'}")
     return (1 if problems else 0), lines

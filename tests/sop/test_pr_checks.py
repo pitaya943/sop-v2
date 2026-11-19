@@ -615,3 +615,69 @@ def test_sync_pr_may_add_paths_the_new_version_manages(repo):
     repo.write("docs/sop/new.md", "new\n")
     repo.commit()
     assert guards.check_path_scope(c) == []
+
+
+# ---------------------------------------------------------------------------
+# S4 trial findings: the bootstrap PR has no config and no test baseline on main
+# ---------------------------------------------------------------------------
+
+
+def _unfilled_main_and_bootstrap_branch(repo):
+    """main has the template's null bot; sop/bootstrap fills it in."""
+    repo.git("checkout", "-q", "main")
+    cfg = config.parse_yaml((repo.path / ".sop" / "config.yml").read_text())
+    filled_bot = dict(cfg["bot"])
+    cfg["bot"] = {"github": None, "github_id": None}
+    repo.write(".sop/config.yml", config.dump_yaml(cfg))
+    repo.commit("template state")
+    repo.git("checkout", "-q", "-b", "sop/bootstrap")
+    cfg["bot"] = filled_bot
+    repo.write(".sop/config.yml", config.dump_yaml(cfg))
+    repo.commit("bootstrap")
+    return ctx(repo, head_ref="sop/bootstrap", base_ref="main")
+
+
+def test_bootstrap_pr_reads_the_machine_account_from_its_own_config(repo):
+    c = _unfilled_main_and_bootstrap_branch(repo)
+    assert guards.machine_account(c) == "example-bot"
+
+
+def test_other_prs_never_read_the_machine_account_from_the_pr(repo):
+    c = _unfilled_main_and_bootstrap_branch(repo)
+    c.head_ref = "feature/x"
+    with pytest.raises(guards.CheckError, match="bot.github is not set"):
+        guards.machine_account(c)
+
+
+def test_unexpected_errors_fail_with_a_message_not_a_traceback(repo, monkeypatch):
+    def boom(_ctx):
+        raise AttributeError("'NoneType' object has no attribute 'lower'")
+
+    monkeypatch.setattr(guards, "check_path_scope", boom)
+    code, lines = guards.run_check("path-scope", ctx(repo))
+    assert code == 1 and "unexpected error" in lines[0] and "AttributeError" in lines[0]
+
+
+def test_bootstrap_pr_has_no_test_baseline_to_compare(repo, tmp_path):
+    c = _unfilled_main_and_bootstrap_branch(repo)
+    head = junit(tmp_path, "head.xml", {"tests.test_smoke::test_ok": "passed"})
+    env = {"SOP_BASE_JUNIT": str(tmp_path / "missing.xml"), "SOP_HEAD_JUNIT": str(head)}
+    code, lines = guards.run_check("no-weakened-tests", c, env=env)
+    assert code == 0 and "no baseline" in lines[0]
+
+
+def test_other_prs_still_fail_without_a_baseline(repo, tmp_path):
+    head = junit(tmp_path, "head.xml", {"tests.test_smoke::test_ok": "passed"})
+    env = {"SOP_BASE_JUNIT": str(tmp_path / "missing.xml"), "SOP_HEAD_JUNIT": str(head)}
+    code, _ = guards.run_check("no-weakened-tests", ctx(repo), env=env)
+    assert code == 1
+
+
+def test_a_later_pr_named_sop_bootstrap_gets_no_exemption(repo, tmp_path):
+    """After bootstrap (main's config is filled), the branch name buys nothing."""
+    repo.git("checkout", "-q", "main")
+    repo.git("checkout", "-q", "-b", "sop/bootstrap")
+    head = junit(tmp_path, "head.xml", {"tests.test_smoke::test_ok": "passed"})
+    env = {"SOP_BASE_JUNIT": str(tmp_path / "missing.xml"), "SOP_HEAD_JUNIT": str(head)}
+    code, _ = guards.run_check("no-weakened-tests", ctx(repo, head_ref="sop/bootstrap", base_ref="main"), env=env)
+    assert code == 1
