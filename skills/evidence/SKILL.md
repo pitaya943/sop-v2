@@ -12,7 +12,7 @@ A claim without evidence counts as unverified. Read `docs/agents/harness.md` for
 | Claim | Evidence |
 | --- | --- |
 | A test passes or fails | The exact command, and its output in a code block. Keep the first lines, the last lines and the summary line; mark any cut with `...`. |
-| Red before green | The failing output from before the fix, with the reason visible (an assertion, not an import error). |
+| Red before green | The failing output from before the fix, with the reason visible (an assertion, not an import error). If a condition passed on its first run because earlier work covered it, a note saying so instead. |
 | A screen or UI works | Screenshots you took yourself, saved under `docs/evidence/<ticket>/`, named for what they show, and linked from the PR. |
 | A file is unchanged or in scope | A `git diff --stat <base>...HEAD` listing. |
 | Behaviour on bad input | The command or request, with the rejection it produced. |
@@ -31,6 +31,7 @@ Every hand-off comment and every verdict names the model that did the work.
 - Take it from the session's actual configuration: the model ID stated in your system context, or a session-info tool if you have one. In a Claude Code cloud session, the `get_session` tool reports it.
 - Never write a model name from memory or from what seems likely.
 - If you can't get it, write "unavailable" and the reason, for example "no session-info tool in this environment".
+- Working as a subagent, a session tool describes the parent session. Report that model and say it came from the parent session.
 
 ## Where it goes
 

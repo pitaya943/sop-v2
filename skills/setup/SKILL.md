@@ -14,7 +14,7 @@ Read what exists. Don't assume.
 
 - `git remote -v`: is this a GitHub repo, and which one?
 - `docs/agents/harness.md`: if it exists, you're updating it. Show the current values and ask only about what changes.
-- The test command: look at `package.json` scripts, `pyproject.toml`, `pytest.ini`, `Makefile`, `go.mod`, `Cargo.toml` and CI workflows. Run the best candidate once, and note whether it passes.
+- The test command: look at `package.json` scripts, `pyproject.toml`, `pytest.ini`, `Makefile`, `go.mod`, `Cargo.toml` and CI workflows. Run the best candidate once, exactly as you'll record it, and note whether it passes.
 - `docs/tickets/` or issues labelled `ticket`: where does planned work already live?
 - `AGENTS.md` and `CLAUDE.md`: is there already a pointer to the harness file?
 - Who you are on GitHub: `gh api user --jq .login`, or the GitHub tool's "get me" call. Don't guess.
@@ -26,7 +26,7 @@ Lead each question with your recommendation, so the user can accept it in a word
 
 1. **Owner and machine account.** Who merges `main`? Is there a separate machine account the agents act as? Recommend one if several agents will work in parallel: then every push, PR and comment can be traced to an agent by its GitHub account. "None" is a valid answer.
 2. **Where tickets live.** GitHub Issues labelled `ticket` (recommended when there's a GitHub remote) or `docs/tickets/<id>.md` files.
-3. **Test command.** Confirm the one you found, or ask for it. If nothing runs yet, record "none yet" and say that `/build` needs one.
+3. **Test command.** Confirm one that actually runs here, as typed: if the test tool lives in a virtualenv, record that path (for example `.venv/bin/python -m pytest -q`). Otherwise ask for it. If nothing runs yet, record "none yet" and say that `/build` needs one.
 4. **Language, records and sensitive areas.** Which language documents are written in (PRs, issues, reports); whether to keep `docs/decisions.md` (recommended) and `docs/pitfalls.md`; which areas need a covering test before anyone changes them (money, permissions, migrations). "None" is fine.
 
 If an answer contradicts something you found (an account that doesn't exist, a failing test command), say what you found and ask again. Never fill in an answer yourself.

@@ -12,7 +12,7 @@ argument-hint: "<ticket: issue number, URL or path>"
 1. Read `docs/agents/harness.md`. If it's missing, suggest `/setup` once, then continue: tickets are GitHub Issues in this repo, and the test command is whatever the repo's config files say.
 2. Fetch the ticket and state its title. If the reference is ambiguous, ask. List its completion conditions back to the user as a numbered list.
 3. If any condition is unclear, two conditions contradict each other, or the work needs a change the ticket doesn't authorize (a data model, a public interface, a sensitive area from the harness file with no covering test): stop. Ask the Owner with the `ask-owner` skill when installed, otherwise in the conversation. Don't guess.
-4. **Identity.** If the harness file names a machine account, confirm the GitHub login you act as is that account. If it isn't, stop and tell the user. Set the commit author to that account and its GitHub noreply email: `<id>+<login>` at the domain `users.noreply.github.com`, where `<id>` comes from `gh api users/<login> --jq .id`.
+4. **Identity.** If the harness file names a machine account, confirm the GitHub login you act as is that account. If it isn't, stop and tell the user. Set the commit author to that account and its GitHub noreply email: `<id>+<login>` at the domain `users.noreply.github.com`. `<id>` is the numeric account id, from `gh api users/<login> --jq .id` or the `id` in the GitHub tool's get-me result.
 5. Branch `ticket/<id>-<short-slug>` from the ticket's base branch (`main` unless the ticket says otherwise).
 
 ## Build
@@ -25,7 +25,7 @@ argument-hint: "<ticket: issue number, URL or path>"
 ## Hand over
 
 1. Push, then open a PR into the base branch, with [pr-template.md](pr-template.md) as the description, in the document language. Use the `evidence` skill for the "Evidence" section: one entry per condition, plus the red output.
-2. If CI runs on the PR, wait for it. Fix and push until it's green. A red CI isn't a hand-off.
+2. If CI runs the tests on the PR, wait for it, and fix and push until it's green: a red CI isn't a hand-off. If no CI runs the tests (a review bot isn't CI), say so in the PR; your full local run is the evidence, and the verifier's clean re-run is the check.
 3. Post one hand-off comment: each condition with its evidence, the head commit, and the model that did the work (`evidence` skill).
 
 ## Fix rounds

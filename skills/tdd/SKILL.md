@@ -13,6 +13,8 @@ Repeat for one behaviour at a time: one completion condition, one bug, one edge 
 
 1. **Red.** Write one test for the behaviour, through the public interface the caller uses. Run it on its own.
    - It must fail, and for the right reason: the behaviour is missing or wrong. An import error, a typo or a broken fixture isn't red. Fix the test, then run it again.
+   - For a brand-new module or function, first add a minimal stub (the real signature, returning a placeholder), so the red is a failed assertion rather than an import error.
+   - If earlier work already makes the test pass, don't undo work to manufacture a red. Keep the test, and say in the PR which condition had no red and why; the verifier backs it with a mutation.
    - Keep the failing output. It's evidence (see the `evidence` skill).
 2. **Green.** Make the smallest change in product code that passes the test. Run that test, then the test file.
 3. **Refactor.** With everything green, remove duplication and improve names. Run the tests after each step. No behaviour changes here.

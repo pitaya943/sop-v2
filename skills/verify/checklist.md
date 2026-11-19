@@ -4,22 +4,22 @@ You're the verifier. You can't see the builder's conversation, on purpose. Judge
 
 Mark every item pass or fail, with evidence: the command and its output, or the file and line. No evidence means fail.
 
-1. **Clean re-run.** In a clean checkout of the head commit, install what the project needs and run the full test command from `docs/agents/harness.md`. The result matches CI, if CI ran.
+1. **Clean re-run.** In a clean checkout of the head commit, install what the project needs and run the full test command from `docs/agents/harness.md`. The result matches CI. If no CI runs the tests (a review bot isn't CI), say so: the clean re-run stands alone.
 2. **Completion conditions.** Each condition in the ticket has a test, or a re-runnable command, that you ran and saw pass. The count matches the ticket.
 3. **Tests weren't weakened.**
-   - Run the suite on the base branch too, and compare: every test that passed on the base still exists and passes on the head.
+   - Run the suite on the base too, and compare: every test that passed on the base still exists and passes on the head. Check out the base by its commit SHA; a worktree can't check out a branch that's checked out elsewhere.
    - The diff adds no skip or expected-failure markers.
    - The diff deletes no test or parametrized case, and loosens no assertion.
 4. **Tests are real.** Read each new or changed test: it calls the product code through its public interface, and it checks the result. A test that would pass with the feature removed fails this item.
 5. **Mutation spot-check.** Pick up to three conditions, preferring sensitive areas from the harness file, money, permissions and state changes. For each, break the implementation locally (invert a condition, drop a line, return early) and confirm the matching test fails. Revert. Never push these changes.
-6. **Error paths.** For at least one error path, the test asserts the outcome or its type, the exact message, and that nothing else changed.
+6. **Error paths.** For at least one error path, the test asserts the outcome or its type, the exact message, and that nothing else changed. For code with no state (a pure function), say so instead of the last part.
 7. **Bad input through the interface.** Send the public interface one invalid input that no test covers (a missing field, out of range, wrong permissions). Confirm it's rejected.
-8. **Edge cases from the spec.** Read the spec text, think of two edge cases the tests don't cover, and try them.
+8. **Edge cases from the spec.** Read the spec text (with no spec file, the ticket is the spec), think of two edge cases the tests don't cover, and try them.
    - Behaviour that contradicts the spec is a fail.
    - Behaviour the spec doesn't decide isn't a fail: list it under "Spec questions".
 9. **Scope.** Run `git diff --stat <base>...<head>`. If the ticket lists a scope, every changed file is inside it. In every case, the diff doesn't touch specs, `docs/agents/harness.md`, `AGENTS.md`/`CLAUDE.md` or CI config unless the ticket names that exact file.
 10. **Evidence and hygiene.**
-    - The PR's evidence section covers every condition, including the red output.
+    - The PR's evidence section covers every condition, including the red output. A condition with no red needs a note saying why, and a mutation in item 5 that makes its test fail.
     - Nothing in the diff, PR or logs exposes a secret.
     - No test talks to a shared or production system.
 
