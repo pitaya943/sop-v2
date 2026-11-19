@@ -124,4 +124,10 @@ GitHub's "Use this template" copies files as-is: it asks no questions and fills 
 
 ## 授權 / License
 
-尚未決定（設計文件第 20 節）。/ Not yet chosen (design doc section 20).
+[MIT-0（MIT No Attribution）](LICENSE)。你可以自由使用、複製、修改、散布本範本，包括商業用途；**不需要**在你的專案中保留本範本的著作權聲明或授權檔。本範本按現狀提供，不附任何擔保。
+
+用本範本產生的專案**不會**自動帶入這份授權，專案要用什麼授權由你自己決定。唯一的例外：如果你開啟的可選模組內含第三方檔案，那些檔案的原始授權檔會放在該模組的資料夾中，必須保留。
+
+[MIT-0 (MIT No Attribution)](LICENSE). You may use, copy, modify and distribute this template freely, including commercially, and you **don't** need to keep this template's copyright notice or license file in your project. The template is provided as is, without warranty.
+
+Projects generated from this template **don't** inherit this license; you choose your project's license. The one exception: if an optional module you enable contains third-party files, their original license files sit in that module's folder and must be kept.
