@@ -413,7 +413,51 @@ def check_readonly_paths(ctx: Ctx) -> list[str]:
     ]
 
 
+def managed_entries(text: str | None) -> list[tuple[str, bool]]:
+    """(glob, is_module_path) for each entry of a managed.txt text."""
+    entries = []
+    for line in (text or "").splitlines():
+        parts = line.split("#", 1)[0].split()
+        if parts:
+            glob = parts[0] + "**" if parts[0].endswith("/") else parts[0]
+            entries.append((glob, any(t.startswith("module:") for t in parts[1:])))
+    return entries
+
+
+def check_special_pr_scope(ctx: Ctx) -> list[str] | None:
+    """Bootstrap and sop-sync PRs may change only their own paths (S3).
+
+    * sop/bootstrap: anything the project owns, but no template-owned path,
+      except deleting the paths of a disabled module.
+    * sop/sync-*: only template-owned paths (old or new version), AGENTS.md
+      (its template sections) and .sop/config.yml (new fields).
+    Returns None for any other branch.
+    """
+    if ctx.head_ref == "sop/bootstrap":
+        entries = managed_entries(show(ctx, ctx.base, ".sop/managed.txt"))
+        bad = []
+        for status, path in changed_files(ctx):
+            hits = [is_module for glob, is_module in entries if path_matches(glob, path)]
+            if hits and not (status == "D" and any(hits)):
+                bad.append(f"{path} ({status}): a bootstrap PR may not change template-owned paths "
+                           "(it may only delete paths of disabled modules)")
+        return bad
+    if ctx.head_ref.startswith("sop/sync-"):
+        entries = managed_entries(show(ctx, ctx.base, ".sop/managed.txt"))
+        entries += managed_entries(show(ctx, ctx.head, ".sop/managed.txt"))
+        allowed = {"AGENTS.md", ".sop/config.yml"}
+        return [
+            f"{path} ({status}): a sop-sync PR may change only template-owned paths, AGENTS.md and .sop/config.yml"
+            for status, path in changed_files(ctx)
+            if path not in allowed and not any(path_matches(glob, path) for glob, _ in entries)
+        ]
+    return None
+
+
 def check_path_scope(ctx: Ctx) -> list[str]:
+    special = check_special_pr_scope(ctx)
+    if special is not None:
+        return special
     tc = ticket_context(ctx)
     if tc is None:
         return []
