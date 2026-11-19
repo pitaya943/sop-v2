@@ -1,6 +1,6 @@
 # SOP v2 設計文件
 
-Chief of Staff 與 subagent 協作、平行開發的通用專案範本。草稿 v0.3，2026-11-19。
+Chief of Staff 與 subagent 協作、平行開發的通用專案範本。草稿 v0.4，2026-11-19。
 
 > **一句話：** 一個任何人都能拿來開新專案的範本。它定義「Chief 分派、Builder 實作、Verifier 獨立驗收、Owner 只做決策」的協作模式與平行開發規則，並用 CI 把角色之間的契約變成機器檢查。範本本身不含任何個人或專案資訊；所有需要注入的資訊都必須在建立專案時選定，並通過啟動閘門，才能開始開發。
 >
@@ -87,8 +87,9 @@ sop-v2 由兩個前身整理而來：一份以文件規範為主的單 session �
 | D6 | 範本定義 | **P1 可分享、P2 先完整才開工** | 所有注入點無預設值；新增啟動閘門與範本個資掃描 |
 | D7 | GitHub 的 template repository 設定 | **不開啟** | 「Use this template」會繞過 Copier（L1），使用者會拿到未渲染的 `.jinja` 檔；只提供 Copier 一種建立方式 |
 | D8 | 設計文件格式 | Markdown | 在 GitHub 上直接閱讀、diff 易讀 |
+| D9 | 授權 | **MIT-0**，著作權人「sop-v2 contributors」 | 範本內容會被複製進每個下游專案，MIT-0 不要求保留聲明，下游沒有負擔；授權檔不含個人名字，符合 P1；仍保留免責條款。`LICENSE` 只放在 repo 根目錄，不在 `template/` 內，所以產生的專案不會繼承它；第三方檔案的授權檔隨所屬模組一起產生 |
 
-> **EN:** D1 replace v1, keeping its useful parts as optional modules; D2 distribute with Copier; D3 language is a required per-project choice; D4 the machine account is a required injection point verified at bootstrap; D5 the learning module is optional and must be explicitly chosen; D6 the template definition (P1, P2); D7 don't enable GitHub's "template repository" setting, because "Use this template" bypasses Copier and yields unrendered `.jinja` files; D8 the design doc is Markdown.
+> **EN:** D1 replace v1, keeping its useful parts as optional modules; D2 distribute with Copier; D3 language is a required per-project choice; D4 the machine account is a required injection point verified at bootstrap; D5 the learning module is optional and must be explicitly chosen; D6 the template definition (P1, P2); D7 don't enable GitHub's "template repository" setting, because "Use this template" bypasses Copier and yields unrendered `.jinja` files; D8 the design doc is Markdown; D9 license MIT-0 held by "sop-v2 contributors": template content is copied into every downstream project, MIT-0 requires no notice there, names no person (P1), and keeps the warranty disclaimer. `LICENSE` sits at the repo root, outside `template/`, so generated projects don't inherit it; third-party license files ship with their modules.
 
 ## 5. 角色與權限
 
@@ -460,6 +461,7 @@ P1 要求 sop-v2 這個 repo 本身沒有個人資訊。做法：
 sop-v2/
   copier.yml                      # 注入點（全部必答）、模組、_skip_if_exists、_subdirectory: template
   README.md                       # 使用方式、會寫進專案的資訊、版本紀錄
+  LICENSE                         # MIT-0（不進專案，D9）
   docs/design/sop-v2-design.md    # 本文件（不進專案）
   tests/sop/                      # 檢查本身的測試（不進專案）
   .github/workflows/self-ci.yml   # 範本自己的 CI：guards 測試、個資掃描、渲染測試
@@ -526,6 +528,6 @@ sop-v2/
 1. **Copier 必答行為：** 需要在 S0 用測試確認「沒有預設值的問題」在互動模式與非互動模式（`--data`、`--defaults`）下都無法略過；若某種模式會略過，改由 `validator` 拒絕空值。
 2. **Ruleset 的可讀性：** 以機器帳號（非 Admin）能否透過 API 讀到 branch rules，決定 B3、B4 能否全自動驗證。
 3. **Verifier PASS 的機器檢查** 放進 v2.0 還是 v2.1。
-4. **授權條款：** 可分享的範本需要選定 LICENSE；若沿用第三方 skill，需保留其授權檔。
+4. ~~**授權條款**~~：已決定，見 D9。
 
-> **EN:** Open: (1) verify in S0 that Copier can't skip default-less questions in any mode, else reject empty values via validators; (2) whether a non-admin machine account can read branch rules via the API (decides if B3/B4 are fully automatic); (3) whether the Verifier-PASS machine check ships in v2.0 or v2.1; (4) choose a LICENSE for a shareable template, keeping third-party skill licenses.
+> **EN:** Open: (1) verify in S0 that Copier can't skip default-less questions in any mode, else reject empty values via validators; (2) whether a non-admin machine account can read branch rules via the API (decides if B3/B4 are fully automatic); (3) whether the Verifier-PASS machine check ships in v2.0 or v2.1. (4) License: resolved, see D9.
