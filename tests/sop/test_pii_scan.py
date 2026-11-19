@@ -60,6 +60,13 @@ def test_claude_md_import_is_not_a_mention():
     assert pii_scan.scan_text("hi " + line, "CLAUDE.md") != []  # whole line only
 
 
+def test_css_at_rules_are_not_mentions_in_html_only():
+    line = AT + "media (prefers-color-scheme: dark) {"
+    assert pii_scan.scan_text(line, "report.html") == []
+    assert pii_scan.scan_text(line, "notes.md") != []
+    assert pii_scan.scan_text(AT + "someone", "report.html") != []
+
+
 def test_repository_is_clean():
     assert pii_scan.scan_files(pii_scan.repo_files()) == []
 

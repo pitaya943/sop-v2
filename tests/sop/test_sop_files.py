@@ -54,7 +54,7 @@ def test_managed_paths_exclude_project_owned_and_template_only():
     project_owned = [
         ".sop/config.yml", ".sop/bootstrap.yml", "AGENTS.md",
         "docs/board.md", "docs/decisions.md", "docs/pitfalls.md",
-        "docs/tickets/T-001.md", "docs/milestones/M1.md", "docs/evidence/",
+        "docs/tickets/T-001.md", "docs/milestones/M1.md", "docs/milestones/README.md", "docs/evidence/",
         "docs/project/", ".claude/skills/project/", ".github/workflows/project/",
         "scripts/project/",
         "scripts/sop/test",  # the project's own test runner (design doc 10.2)

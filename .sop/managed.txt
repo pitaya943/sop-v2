@@ -25,7 +25,6 @@ scripts/sop/bootstrap
 CLAUDE.md
 docs/sop/
 docs/tickets/_template.md
-docs/milestones/README.md
 docs/milestones/report-template.html
 .github/ISSUE_TEMPLATE/plan-approval.md
 .github/ISSUE_TEMPLATE/needs-owner.md
