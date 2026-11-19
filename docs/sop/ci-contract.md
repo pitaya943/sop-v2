@@ -9,9 +9,10 @@
 - **防護目標：** 這些檢查防的是 agent 的疏忽與常見的偷懶寫法，不是刻意的攻擊。刻意的繞過由 Verifier 審查 diff、Owner 審查 milestone 擋下。檢查以允許清單、禁止整類寫法、比對結果的方式設計，不靠列舉禁止的語法。
 - **來源分支（fail-closed）：** 目標是 `milestone/*` 的 PR，來源分支必須是 `ticket/T-xxx`，而且目標分支上要有對應的 `docs/tickets/T-xxx.md`，否則下列每一項都判為失敗。
 - **兩層：** 中立層只需要 git、`.sop/` 設定與 GitHub API，與技術棧無關；介面層透過專案實作的 `scripts/sop/test` 取得結果。
-- **在哪裡必須通過：** 必要的檢查只設在 `main`（啟動時查證 B4）。CI 在每個 PR、以及推送到 `milestone/**` 與 `main` 時執行；Ticket PR 合併進 milestone 前由 Chief 確認全綠。
+- **檢查跑的是 PR 上的程式碼：** 依防護目標，這是可以接受的；但範本擁有的路徑（`.sop/managed.txt`，包含 `scripts/sop/` 與 workflow）都是唯讀路徑，PR 改動它們會被 `readonly-paths` 擋下。Ticket 與設定一律從目標分支讀取，PR 無法放寬自己的範圍或停用自己的檢查。
+- **在哪裡必須通過：** 必要的檢查只設在 `main`（啟動時查證 B4；設定步驟見 [`setup.md`](setup.md#7-必要檢查--required-status-checks)）。CI 在每個 PR、以及推送到 `milestone/**` 與 `main` 時執行；Ticket PR 合併進 milestone 前由 Chief 確認全綠。
 
-> **EN:** Checks guard against agent carelessness and common shortcuts, not deliberate attacks (the Verifier and the Owner catch those); they use allowlists, ban whole classes of constructs, and compare results. PRs into `milestone/*` must come from `ticket/T-xxx` with a matching ticket file, or every check fails. Stack-neutral checks need only git, `.sop/` and the GitHub API; interface checks go through `scripts/sop/test`. Required checks are set only on `main` (B4); CI runs on every PR and on pushes to milestone branches and `main`, and the Chief confirms green before merging a ticket PR.
+> **EN:** Checks guard against agent carelessness and common shortcuts, not deliberate attacks (the Verifier and the Owner catch those); they use allowlists, ban whole classes of constructs, and compare results. PRs into `milestone/*` must come from `ticket/T-xxx` with a matching ticket file, or every check fails. Stack-neutral checks need only git, `.sop/` and the GitHub API; interface checks go through `scripts/sop/test`. Checks run the PR's own code, which is acceptable under this goal, but template-managed paths (`scripts/sop/`, the workflows) are read-only, and tickets and config always come from the target branch, so a PR can neither widen its scope nor disable its own checks. Required checks are set only on `main` (B4; see `setup.md`); CI runs on every PR and on pushes to milestone branches and `main`, and the Chief confirms green before merging a ticket PR.
 
 ## 2. 檢查清單 / The checks
 
@@ -43,6 +44,7 @@
 - `.sop/**`、`docs/sop/**`、`.claude/**`、`.github/**`
 - `docs/board.md`、`docs/decisions.md`
 - `spec_paths` 列出的規格路徑
+- `.sop/managed.txt` 列出的範本路徑（例如 `scripts/sop/` 的檢查程式）
 
 例外：
 
@@ -53,7 +55,7 @@ Chief 的紀錄直接推送到 `milestone/Mx`，不經過 PR，所以不受這�
 
 範本擁有的路徑（`.sop/managed.txt`）在專案中是唯讀的，所以 `sop-sync` 覆寫時不會蓋掉專案的修改。
 
-> **EN:** PRs into `milestone/*` may not touch `AGENTS.md`, `CLAUDE.md`, `.sop/**`, `docs/sop/**`, `.claude/**`, `.github/**`, the board, the decision log or `spec_paths`, except paths a ticket's `allowed_paths` lists exactly (approved by the Owner in the plan). Bootstrap and sync PRs target `main` and may change only their own paths. The Chief's direct pushes of records aren't PRs and aren't checked here; the process and the Owner's milestone review cover them. Template-owned paths are read-only in projects, so sync can overwrite them safely.
+> **EN:** PRs into `milestone/*` may not touch `AGENTS.md`, `CLAUDE.md`, `.sop/**`, `docs/sop/**`, `.claude/**`, `.github/**`, the board, the decision log, `spec_paths` or template-managed paths, except paths a ticket's `allowed_paths` lists exactly (approved by the Owner in the plan). Bootstrap and sync PRs target `main` and may change only their own paths. The Chief's direct pushes of records aren't PRs and aren't checked here; the process and the Owner's milestone review cover them. Template-owned paths are read-only in projects, so sync can overwrite them safely.
 
 ## 4. 測試介面 / The test interface
 
@@ -67,9 +69,10 @@ scripts/sop/test  — 由專案實作（專案擁有，sop-sync 不覆寫）
 ```
 
 - 範本內附的 `scripts/sop/test` 故意失敗，訊息是「請實作測試介面」。接上測試是啟動閘門的一部分（B5）。
+- **它必須能在乾淨的 `ubuntu-24.04` runner 上直接執行**：自己安裝需要的套件、準備需要的拋棄式資源。`sop-guards` 的 `tests` job 直接呼叫它；`no-weakened-tests` 會在目標分支上執行**目標分支自己的** `scripts/sop/test`，再在 PR 上執行一次。
 - 測試真的需要改名時，由 Chief 在 ticket 寫明舊名對新名的對應，並記錄在 `docs/decisions.md`。
 
-> **EN:** The project implements `scripts/sop/test` (project-owned, never overwritten by sync): exit 0 when all pass, write `build/sop/junit.xml`, keep test IDs (`classname::name`) stable. The shipped stub fails on purpose (bootstrap check B5). Necessary renames are mapped in the ticket and recorded in the decision log by the Chief.
+> **EN:** The project implements `scripts/sop/test` (project-owned, never overwritten by sync): exit 0 when all pass, write `build/sop/junit.xml`, keep test IDs (`classname::name`) stable. The shipped stub fails on purpose (bootstrap check B5). It must run as-is on a clean `ubuntu-24.04` runner, installing what it needs; `no-weakened-tests` runs the target branch's own script there, then the PR's. Necessary renames are mapped in the ticket and recorded in the decision log by the Chief.
 
 ## 5. 停用檢查 / Disabling a check
 

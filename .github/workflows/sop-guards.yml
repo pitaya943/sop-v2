@@ -1,0 +1,271 @@
+# sop-v2 guards for projects (docs/sop/ci-contract.md). Template-owned: sop-sync overwrites it.
+#
+# One job per check, and the job name IS the check name, so the Owner can list
+# them as required status checks on main (docs/sop/setup.md). The logic lives in
+# scripts/sop/guards.py and scripts/sop/compare_junit.py; this file only wires
+# GitHub's event data into them.
+#
+# The "detect" job skips everything in the sop-v2 template repository itself
+# (recognized by its template-only self-ci workflow): the template is unfilled
+# on purpose. Skipped jobs count as passing.
+name: sop-guards
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]  # edited: re-run evidence after the description changes
+  push:
+    branches: [main, "milestone/**"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sop-guards-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Passed through the environment, never interpolated into shell commands.
+  CI_BASE_REF: ${{ github.base_ref }}
+  CI_HEAD_REF: ${{ github.head_ref }}
+  CI_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  CI_PR_BODY: ${{ github.event.pull_request.body }}
+
+jobs:
+  detect:
+    runs-on: ubuntu-24.04
+    outputs:
+      project: ${{ steps.detect.outputs.project }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: detect
+        run: |
+          if [ -f .github/workflows/self-ci.yml ]; then
+            echo "sop-v2 template repository: guards are skipped here"
+            echo "project=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "project=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ---- runs on pull requests and on pushes ----
+  sop-ready:
+    needs: detect
+    if: needs.detect.outputs.project == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Resolve the target branch
+        if: github.event_name == 'pull_request'
+        run: echo "CI_BASE_SHA=$(git rev-parse "origin/$CI_BASE_REF")" >> "$GITHUB_ENV"
+      - run: python3 scripts/sop/guards.py sop-ready
+
+  tests:
+    needs: detect
+    if: needs.detect.outputs.project == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Resolve the target branch
+        if: github.event_name == 'pull_request'
+        run: echo "CI_BASE_SHA=$(git rev-parse "origin/$CI_BASE_REF")" >> "$GITHUB_ENV"
+      - name: Run the project's test interface
+        id: run
+        run: |
+          set +e
+          scripts/sop/test
+          echo "status=$?" >> "$GITHUB_OUTPUT"
+      - name: Keep the JUnit report for done-when
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit
+          path: build/sop/junit.xml
+          if-no-files-found: ignore
+      - name: Check the report
+        run: python3 scripts/sop/guards.py tests
+      - name: The test interface must exit 0
+        env:
+          STATUS: ${{ steps.run.outputs.status }}
+        run: |
+          echo "scripts/sop/test exited with $STATUS"
+          test "$STATUS" = 0
+
+  # ---- pull requests only ----
+  branch-ticket:
+    needs: detect
+    if: needs.detect.outputs.project == 'true' && github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Resolve the target branch
+        run: echo "CI_BASE_SHA=$(git rev-parse "origin/$CI_BASE_REF")" >> "$GITHUB_ENV"
+      - name: Run the check named after this job
+        env:
+          CHECK: ${{ github.job }}
+        run: python3 scripts/sop/guards.py "$CHECK"
+
+  readonly-paths:
+    needs: detect
+    if: needs.detect.outputs.project == 'true' && github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Resolve the target branch
+        run: echo "CI_BASE_SHA=$(git rev-parse "origin/$CI_BASE_REF")" >> "$GITHUB_ENV"
+      - name: Run the check named after this job
+        env:
+          CHECK: ${{ github.job }}
+        run: python3 scripts/sop/guards.py "$CHECK"
+
+  path-scope:
+    needs: detect
+    if: needs.detect.outputs.project == 'true' && github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Resolve the target branch
+        run: echo "CI_BASE_SHA=$(git rev-parse "origin/$CI_BASE_REF")" >> "$GITHUB_ENV"
+      - name: Run the check named after this job
+        env:
+          CHECK: ${{ github.job }}
+        run: python3 scripts/sop/guards.py "$CHECK"
+
+  append-only:
+    needs: detect
+    if: needs.detect.outputs.project == 'true' && github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Resolve the target branch
+        run: echo "CI_BASE_SHA=$(git rev-parse "origin/$CI_BASE_REF")" >> "$GITHUB_ENV"
+      - name: Run the check named after this job
+        env:
+          CHECK: ${{ github.job }}
+        run: python3 scripts/sop/guards.py "$CHECK"
+
+  serial-resource:
+    needs: detect
+    if: needs.detect.outputs.project == 'true' && github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Resolve the target branch
+        run: echo "CI_BASE_SHA=$(git rev-parse "origin/$CI_BASE_REF")" >> "$GITHUB_ENV"
+      - name: Run the check named after this job
+        env:
+          CHECK: ${{ github.job }}
+        run: python3 scripts/sop/guards.py "$CHECK"
+
+  evidence:
+    needs: detect
+    if: needs.detect.outputs.project == 'true' && github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Resolve the target branch
+        run: echo "CI_BASE_SHA=$(git rev-parse "origin/$CI_BASE_REF")" >> "$GITHUB_ENV"
+      - name: Run the check named after this job
+        env:
+          CHECK: ${{ github.job }}
+        run: python3 scripts/sop/guards.py "$CHECK"
+
+  commit-author:
+    needs: detect
+    if: needs.detect.outputs.project == 'true' && github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read  # list the PR's commits (author.login); nothing more
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      CI_PR_NUMBER: ${{ github.event.pull_request.number }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Resolve the target branch
+        run: echo "CI_BASE_SHA=$(git rev-parse "origin/$CI_BASE_REF")" >> "$GITHUB_ENV"
+      - name: Run the check named after this job
+        env:
+          CHECK: ${{ github.job }}
+        run: python3 scripts/sop/guards.py "$CHECK"
+
+  no-weakened-tests:
+    needs: detect
+    if: needs.detect.outputs.project == 'true' && github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Resolve the target branch; reports live outside the checkout, where a PR can't plant them
+        run: |
+          echo "CI_BASE_SHA=$(git rev-parse "origin/$CI_BASE_REF")" >> "$GITHUB_ENV"
+          echo "SOP_BASE_JUNIT=$RUNNER_TEMP/base-junit.xml" >> "$GITHUB_ENV"
+          echo "SOP_HEAD_JUNIT=$RUNNER_TEMP/head-junit.xml" >> "$GITHUB_ENV"
+      - name: Run the target branch's tests (its own test interface)
+        run: |
+          git worktree add --detach "$RUNNER_TEMP/base" "$CI_BASE_SHA"
+          (cd "$RUNNER_TEMP/base" && scripts/sop/test) || echo "target-branch tests exited non-zero; compared by results below"
+          cp "$RUNNER_TEMP/base/build/sop/junit.xml" "$SOP_BASE_JUNIT" || echo "no report from the target branch"
+      - name: Run the PR's tests
+        run: |
+          scripts/sop/test || echo "PR tests exited non-zero; compared by results below"
+          cp build/sop/junit.xml "$SOP_HEAD_JUNIT" || echo "no report from the PR"
+      - name: Compare results
+        run: python3 scripts/sop/guards.py no-weakened-tests
+
+  done-when:
+    needs: [detect, tests]
+    # Run even when tests failed (and fail for the missing report), so "skipped" is never read as "passed".
+    if: ${{ !cancelled() && needs.detect.outputs.project == 'true' && github.event_name == 'pull_request' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Resolve the target branch
+        run: echo "CI_BASE_SHA=$(git rev-parse "origin/$CI_BASE_REF")" >> "$GITHUB_ENV"
+      - uses: actions/download-artifact@v4
+        continue-on-error: true  # a missing report is judged by the check, not here
+        with:
+          name: junit
+          path: build/sop
+      - run: python3 scripts/sop/guards.py done-when
