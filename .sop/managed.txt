@@ -20,6 +20,7 @@ scripts/sop/config.py
 scripts/sop/guards.py
 scripts/sop/compare_junit.py
 scripts/sop/bootstrap
+scripts/sop/sync
 
 # --- core: process docs and templates ---
 CLAUDE.md
