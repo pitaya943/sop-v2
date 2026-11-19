@@ -1,0 +1,521 @@
+#!/usr/bin/env python3
+"""Bootstrap a project created from the sop-v2 template (design doc 15).
+
+Standard library only. Used two ways:
+  * by the bootstrap-project skill, which handles the conversation and calls
+    the subcommands below for every deterministic step;
+  * directly by people who don't use Claude (the "fallback script").
+
+Subcommands, in the usual order:
+
+  ask                  ask for every config field, one at a time, then write it
+  write ANSWERS.json   write answers collected elsewhere (the skill uses this)
+  apply [--notes F]    remove template-only files and disabled modules, write
+                       the project README and the AGENTS.md project section
+  check [--repo O/R]   verify B1-B7 and record results in .sop/bootstrap.yml
+  record Bx --status S --evidence E
+                       record a check verified by hand (e.g. a screenshot)
+  finalize             set ready: true only if every check is done
+
+Principles (design doc 15): no defaults; every answer is validated at once;
+nothing is filled in for the user; the full config is confirmed before it is
+written. The script never pushes or opens pull requests (S3 decision 3): it
+prints the next steps instead.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import compare_junit  # noqa: E402
+import config  # noqa: E402
+import guards  # noqa: E402
+
+DEFAULT_ROOT = Path(__file__).resolve().parents[2]
+CHECK_IDS = guards.CHECK_IDS
+# Repo secret the claude_review module reads (B6). Defined here so the module
+# workflow and this check agree on one name.
+CLAUDE_REVIEW_SECRET = "ANTHROPIC_API_KEY"
+
+
+class BootstrapError(Exception):
+    """A step can't continue; the message says what to fix."""
+
+
+# ---------------------------------------------------------------------------
+# Fields
+# ---------------------------------------------------------------------------
+
+
+def fields(schema: dict) -> list[tuple[str, dict]]:
+    """Every leaf field (path, schema) in schema order. Lists are leaves."""
+    out: list[tuple[str, dict]] = []
+
+    def walk(node: dict, prefix: str) -> None:
+        for name, sub in node.get("properties", {}).items():
+            path = f"{prefix}.{name}" if prefix else name
+            if sub.get("type") == "object":
+                walk(sub, path)
+            else:
+                out.append((path, sub))
+
+    walk(schema, "")
+    return out
+
+
+def get_path(data: dict, path: str):
+    node = data
+    for part in path.split("."):
+        node = node[part]
+    return node
+
+
+def set_path(data: dict, path: str, value) -> None:
+    *parents, last = path.split(".")
+    node = data
+    for part in parents:
+        node = node.setdefault(part, {})
+    node[last] = value
+
+
+def parse_answer(text: str, field: dict):
+    """Turn typed text into a value of the field's type (no defaults)."""
+    text = text.strip()
+    if not text:
+        raise ValueError("an answer is required; there is no default")
+    kind = field.get("type")
+    if kind == "integer":
+        if not re.fullmatch(r"-?\d+", text):
+            raise ValueError("enter a whole number")
+        return int(text)
+    if kind == "boolean":
+        if text not in ("true", "false"):
+            raise ValueError("enter true or false")
+        return text == "true"
+    if kind == "array":
+        if text in ("[]", "none"):
+            return []
+        if field.get("items", {}).get("type") == "object":
+            raise ValueError("enter [] here; entries with several fields are added in the next step")
+        return [part.strip() for part in text.split(",") if part.strip()]
+    return text
+
+
+def field_problems(data: dict, path: str, schema: dict) -> list[str]:
+    """Violations that concern ``path`` (validates the whole draft for cross-field rules)."""
+    return [
+        str(v) for v in config.validate(data, schema)
+        if v.keyword != "null" and (v.path == path or v.path.startswith(path + ".") or v.path.startswith(path + "["))
+    ]
+
+
+# ---------------------------------------------------------------------------
+# Writing .sop/config.yml without losing its comments (S3 decision 2)
+# ---------------------------------------------------------------------------
+
+_KEY_LINE = re.compile(r"^( *)([A-Za-z_][A-Za-z0-9_]*):(.*)$")
+
+
+def _flow_item(value) -> str:
+    text = config._emit_scalar(value)
+    if isinstance(value, str) and not text.startswith('"') and any(c in value for c in ",[]{}"):
+        text = '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
+    return text
+
+
+def _emit_value(key: str, value, indent: int) -> list[str]:
+    """Lines that replace "key: <old>" (without the comment)."""
+    pad = " " * indent
+    if isinstance(value, list) and value and isinstance(value[0], dict):
+        block = config.dump_yaml({key: value}, indent).rstrip("\n").split("\n")
+        return block
+    if isinstance(value, list):
+        return [f"{pad}{key}: [" + ", ".join(_flow_item(v) for v in value) + "]"]
+    return [f"{pad}{key}: {config._emit_scalar(value)}"]
+
+
+def set_values(text: str, values: dict) -> str:
+    """Replace the values at the given dotted paths, keeping every comment.
+
+    A value spanning several lines (a list of mappings) replaces any block
+    that followed the key. The result is re-parsed to prove it says exactly
+    what was asked.
+    """
+    lines = text.split("\n")
+    out: list[str] = []
+    stack: list[tuple[int, str]] = []
+    done: set[str] = set()
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        m = _KEY_LINE.match(line)
+        if not m or line.lstrip().startswith("#"):
+            out.append(line)
+            i += 1
+            continue
+        indent, key, rest = len(m.group(1)), m.group(2), m.group(3)
+        while stack and stack[-1][0] >= indent:
+            stack.pop()
+        path = ".".join([k for _, k in stack] + [key])
+        stack.append((indent, key))
+        if path not in values:
+            out.append(line)
+            i += 1
+            continue
+        rest = rest.lstrip(" ")
+        value_text = config._strip_comment(rest, i + 1) if rest else ""
+        comment = rest[len(value_text):]
+        if comment.strip() and not comment.startswith(" "):
+            comment = " " + comment  # "key:  # note" had no value; keep the comment separate
+        new = _emit_value(key, values[path], indent)
+        new[0] = new[0] + (comment if comment.strip() else "")
+        out.extend(new)
+        done.add(path)
+        i += 1
+        # Drop the old nested block, if any (e.g. a previous list of mappings).
+        while i < len(lines) and lines[i].strip() and (len(lines[i]) - len(lines[i].lstrip(" "))) > indent:
+            i += 1
+    missing = set(values) - done
+    if missing:
+        raise BootstrapError(f"fields not found in the config file: {', '.join(sorted(missing))}")
+    result = "\n".join(out)
+    parsed = config.parse_yaml(result)
+    for path, value in values.items():
+        if get_path(parsed, path) != value:
+            raise BootstrapError(f"writing {path} did not round-trip")
+    return result
+
+
+def write_config(root: Path, answers: dict) -> list[str]:
+    """Validate a complete set of answers and write them. Returns problems (empty = written)."""
+    schema = config.load_schema(root / ".sop" / "schema.json")
+    path = root / ".sop" / "config.yml"
+    draft = config.parse_yaml(path.read_text(encoding="utf-8"))
+    for name, _ in fields(schema):
+        if name in answers:
+            set_path(draft, name, answers[name])
+    problems = [str(v) for v in config.validate(draft, schema)]
+    if problems:
+        return problems
+    path.write_text(set_values(path.read_text(encoding="utf-8"),
+                               {name: get_path(draft, name) for name, _ in fields(schema)}), encoding="utf-8")
+    return []
+
+
+# ---------------------------------------------------------------------------
+# ask: one question at a time
+# ---------------------------------------------------------------------------
+
+
+def ask(root: Path, read=input, say=print) -> int:
+    schema = config.load_schema(root / ".sop" / "schema.json")
+    draft = config.parse_yaml((root / ".sop" / "config.yml").read_text(encoding="utf-8"))
+    say("Every field needs an explicit answer; there are no defaults. Rules: .sop/schema.json")
+    for path, field in fields(schema):
+        while True:
+            hint = field.get("description", "")
+            if "enum" in field:
+                hint += f" One of: {', '.join(field['enum'])}."
+            if field.get("type") == "array":
+                hint += " Separate items with commas; [] for none."
+            if field.get("type") == "boolean":
+                hint += " true or false."
+            text = read(f"{path} ({hint.strip()}): ")
+            try:
+                value = parse_answer(text, field)
+            except ValueError as exc:
+                say(f"  {exc}")
+                continue
+            set_path(draft, path, value)
+            problems = field_problems(draft, path, schema)
+            if problems:
+                for p in problems:
+                    say(f"  {p}")
+                set_path(draft, path, None)
+                continue
+            break
+    say("\nThe complete configuration:\n")
+    say(config.dump_yaml(draft))
+    if read("Write this to .sop/config.yml? Type yes to confirm: ").strip() != "yes":
+        say("Nothing written.")
+        return 1
+    answers = {path: get_path(draft, path) for path, _ in fields(schema)}
+    problems = write_config(root, answers)
+    for p in problems:
+        say(f"  {p}")
+    if not problems:
+        say("Written. Next: scripts/sop/bootstrap apply")
+    return 1 if problems else 0
+
+
+# ---------------------------------------------------------------------------
+# apply: files
+# ---------------------------------------------------------------------------
+
+README_SKELETON = {
+    "zh-TW": "# {name}\n\n{goal}\n\n## 開發方式\n\n這個專案使用 sop-v2 的協作流程：規則在 `AGENTS.md`，流程在 `docs/sop/`。\n",
+    "en": "# {name}\n\n{goal}\n\n## How we work\n\nThis project uses the sop-v2 workflow: rules in `AGENTS.md`, process in `docs/sop/`.\n",
+}
+BEGIN, END = "<!-- sop:project:begin -->", "<!-- sop:project:end -->"
+
+
+def project_section(cfg: dict, notes: str | None) -> str:
+    spec = ", ".join(f"`{p}`" for p in cfg["spec_paths"]) or "—"
+    body = [
+        f"- **Project:** {cfg['project']['name']}: {cfg['project']['goal']}",
+        f"- **Spec:** {spec}. When the spec is unclear, stop and ask; don't guess.",
+    ]
+    if notes:
+        body.append("")
+        body.append(notes.strip())
+    return "\n".join(body)
+
+
+def apply(root: Path, notes: str | None = None) -> list[str]:
+    """Make the file changes of bootstrap. Returns what was done, one line each."""
+    cfg = config.load_yaml_file(root / ".sop" / "config.yml")
+    problems = config.validate(cfg, config.load_schema(root / ".sop" / "schema.json"))
+    if problems:
+        raise BootstrapError("the config is not complete; run ask or write first")
+    done = []
+    for rel, marker in guards.read_template_only(root / ".sop" / "template-only.txt"):
+        target = root / rel.rstrip("/")
+        if rel == "README.md":
+            template = README_SKELETON.get(cfg["doc_language"], README_SKELETON["en"])
+            target.write_text(template.format(name=cfg["project"]["name"], goal=cfg["project"]["goal"]),
+                              encoding="utf-8")
+            done.append("README.md: replaced with the project README")
+        elif target.is_dir():
+            shutil.rmtree(target)
+            done.append(f"{rel}: removed (template-only)")
+        elif target.exists():
+            target.unlink()
+            note = " (choose the project's own license)" if rel == "LICENSE" else ""
+            done.append(f"{rel}: removed (template-only){note}")
+    for line in (root / ".sop" / "managed.txt").read_text(encoding="utf-8").splitlines():
+        parts = line.split("#", 1)[0].split()
+        tags = [t[len("module:"):] for t in parts[1:] if t.startswith("module:")]
+        if parts and tags and cfg["modules"].get(tags[0]) is False:
+            target = root / parts[0].rstrip("/")
+            if target.is_dir():
+                shutil.rmtree(target)
+            elif target.exists():
+                target.unlink()
+            done.append(f"{parts[0]}: removed (module {tags[0]} is off)")
+    agents = root / "AGENTS.md"
+    text = agents.read_text(encoding="utf-8")
+    if text.count(BEGIN) != 1 or text.count(END) != 1:
+        raise BootstrapError("AGENTS.md must contain the project-section markers exactly once")
+    head, rest = text.split(BEGIN, 1)
+    _, tail = rest.split(END, 1)
+    agents.write_text(f"{head}{BEGIN}\n{project_section(cfg, notes)}\n{END}{tail}", encoding="utf-8")
+    done.append("AGENTS.md: project section written")
+    return done
+
+
+# ---------------------------------------------------------------------------
+# check: B1-B7
+# ---------------------------------------------------------------------------
+
+
+def _api(path: str, token: str, api: str, urlopen):
+    import urllib.error
+    import urllib.request
+
+    req = urllib.request.Request(f"{api.rstrip('/')}{path}", headers={
+        "Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"})
+    try:
+        with urlopen(req, timeout=30) as resp:
+            return json.loads(resp.read().decode("utf-8")), None
+    except urllib.error.HTTPError as exc:
+        return None, f"HTTP {exc.code}"
+    except Exception as exc:  # noqa: BLE001  never print the request (it holds the token)
+        return None, type(exc).__name__
+
+
+def check(root: Path, repo: str | None = None, token: str | None = None,
+          api: str = "https://api.github.com", urlopen=None, run_tests: bool = True) -> dict:
+    """Verify B1-B7. Returns {Bx: (status, evidence)}; nothing is written here."""
+    import urllib.request
+
+    urlopen = urlopen or urllib.request.urlopen
+    cfg = config.load_yaml_file(root / ".sop" / "config.yml")
+    bot = cfg["bot"]["github"]
+    results: dict[str, tuple[str, str]] = {}
+    manual = "verify it by hand and record it with: scripts/sop/bootstrap record"
+
+    if token and repo:
+        user, err = _api("/user", token, api, urlopen)
+        if err:
+            results["B1"] = ("pending", f"could not read the signed-in user ({err}); {manual}")
+        elif user.get("login", "").lower() == bot.lower():
+            results["B1"] = ("passed", f"signed-in user is {user['login']} (GET /user)")
+        else:
+            results["B1"] = ("failed", f"signed-in user is {user.get('login')}, not bot.github")
+        perm, err = _api(f"/repos/{repo}/collaborators/{bot}/permission", token, api, urlopen)
+        if err:
+            results["B2"] = ("pending", f"could not read the collaborator permission ({err}); {manual}")
+        else:
+            role = perm.get("role_name") or perm.get("permission")
+            results["B2"] = (("passed", f"{bot} has role {role}") if role == "write"
+                             else ("failed", f"{bot} has role {role}; it must be write (not admin or maintain)"))
+        rules, err = _api(f"/repos/{repo}/rules/branches/main", token, api, urlopen)
+        if err or not isinstance(rules, list):
+            note = f"could not read the rules for main ({err or 'unexpected response'}); {manual} (a screenshot works)"
+            results["B3"] = results["B4"] = ("pending", note)
+        else:
+            types = {r.get("type") for r in rules}
+            need = {"update", "deletion", "non_fast_forward", "pull_request"}
+            results["B3"] = (("passed", f"main rules include {', '.join(sorted(need))}") if need <= types
+                             else ("failed", f"main rules lack {', '.join(sorted(need - types))} (docs/sop/setup.md step 5)"))
+            contexts = {c.get("context") for r in rules if r.get("type") == "required_status_checks"
+                        for c in r.get("parameters", {}).get("required_status_checks", [])}
+            missing = [c for c in guards.CHECKS if c not in contexts]
+            results["B4"] = (("passed", "main requires every sop-guards check") if not missing
+                             else ("failed", f"main does not require: {', '.join(missing)} (docs/sop/setup.md step 7)"))
+        if cfg["modules"]["claude_review"]:
+            secrets, err = _api(f"/repos/{repo}/actions/secrets", token, api, urlopen)
+            if err:
+                results["B6"] = ("pending", f"could not list secret names ({err}); {manual}")
+            else:
+                names = {s.get("name") for s in secrets.get("secrets", [])}
+                results["B6"] = (("passed", f"secret {CLAUDE_REVIEW_SECRET} exists") if CLAUDE_REVIEW_SECRET in names
+                                 else ("failed", f"secret {CLAUDE_REVIEW_SECRET} is missing (docs/sop/setup.md step 10)"))
+    else:
+        for cid in ("B1", "B2", "B3", "B4"):
+            results[cid] = ("pending", f"no GITHUB_TOKEN or repository given; {manual}")
+        if cfg["modules"]["claude_review"]:
+            results["B6"] = ("pending", f"no GITHUB_TOKEN or repository given; {manual}")
+    if not cfg["modules"]["claude_review"]:
+        results["B6"] = ("not_applicable", "the claude_review module is off")
+
+    if run_tests:
+        proc = subprocess.run([str(root / "scripts" / "sop" / "test")], cwd=root, capture_output=True, text=True)
+        problems = compare_junit.check_tests(root / "build" / "sop" / "junit.xml")
+        if proc.returncode == 0 and not problems:
+            count = len(compare_junit.load_results(root / "build" / "sop" / "junit.xml"))
+            results["B5"] = ("passed", f"scripts/sop/test exited 0 and wrote {count} test(s) to build/sop/junit.xml")
+        else:
+            detail = "; ".join(problems) or (proc.stderr.strip().splitlines() or ["no output"])[-1]
+            results["B5"] = ("failed", f"scripts/sop/test exited {proc.returncode}: {detail}")
+
+    leftovers = [p for p in guards.sop_ready(root).problems if p.startswith("template-only path")]
+    for line in (root / ".sop" / "managed.txt").read_text(encoding="utf-8").splitlines():
+        parts = line.split("#", 1)[0].split()
+        tags = [t[len("module:"):] for t in parts[1:] if t.startswith("module:")]
+        if parts and tags and cfg["modules"].get(tags[0]) is False and (root / parts[0].rstrip("/")).exists():
+            leftovers.append(f"{parts[0]} belongs to module {tags[0]}, which is off")
+    results["B7"] = (("passed", "template-only paths and disabled modules are removed") if not leftovers
+                     else ("failed", "; ".join(leftovers)))
+    return results
+
+
+def record(root: Path, results: dict) -> None:
+    """Write {Bx: (status, evidence)} into .sop/bootstrap.yml, keeping its comments."""
+    path = root / ".sop" / "bootstrap.yml"
+    values = {}
+    for cid, (status, evidence) in results.items():
+        if cid not in CHECK_IDS:
+            raise BootstrapError(f"unknown check {cid}")
+        if status not in ("pending", "passed", "failed", "not_applicable"):
+            raise BootstrapError(f"unknown status {status}")
+        if status == "passed" and not evidence.strip():
+            raise BootstrapError(f"{cid}: a passed check needs evidence")
+        values[f"checks.{cid}.status"] = status
+        values[f"checks.{cid}.evidence"] = evidence
+    path.write_text(set_values(path.read_text(encoding="utf-8"), values), encoding="utf-8")
+
+
+def finalize(root: Path) -> list[str]:
+    """Set ready: true only if every check is passed (with evidence) or not applicable."""
+    boot = config.load_yaml_file(root / ".sop" / "bootstrap.yml")
+    open_items = [f"{cid} is {boot['checks'][cid]['status']}" for cid in CHECK_IDS
+                  if boot["checks"][cid]["status"] not in ("passed", "not_applicable")]
+    if open_items:
+        return open_items
+    path = root / ".sop" / "bootstrap.yml"
+    path.write_text(set_values(path.read_text(encoding="utf-8"), {"ready": True}), encoding="utf-8")
+    return [p for p in guards.sop_ready(root).problems]
+
+
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
+
+
+def _repo_from_git(root: Path) -> str | None:
+    r = subprocess.run(["git", "remote", "get-url", "origin"], cwd=root, capture_output=True, text=True)
+    m = re.search(r"github\.com[:/]([^/]+/[^/]+?)(?:\.git)?$", r.stdout.strip())
+    return m.group(1) if m else None
+
+
+def main(argv: list[str] | None = None) -> int:
+    import os
+
+    parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    parser.add_argument("--root", type=Path, default=DEFAULT_ROOT)
+    sub = parser.add_subparsers(dest="cmd", required=True)
+    sub.add_parser("ask")
+    w = sub.add_parser("write")
+    w.add_argument("answers", type=Path, help="JSON object: dotted field path -> value")
+    a = sub.add_parser("apply")
+    a.add_argument("--notes", type=Path, help="Markdown for the AGENTS.md project section")
+    c = sub.add_parser("check")
+    c.add_argument("--repo", help="owner/repo (default: from the origin remote)")
+    c.add_argument("--skip-tests", action="store_true")
+    r = sub.add_parser("record")
+    r.add_argument("check_id", choices=CHECK_IDS)
+    r.add_argument("--status", required=True)
+    r.add_argument("--evidence", required=True)
+    sub.add_parser("finalize")
+    args = parser.parse_args(argv)
+    root = args.root
+
+    try:
+        if args.cmd == "ask":
+            return ask(root)
+        if args.cmd == "write":
+            problems = write_config(root, json.loads(args.answers.read_text(encoding="utf-8")))
+            print("\n".join(problems) if problems else ".sop/config.yml written. Next: scripts/sop/bootstrap apply")
+            return 1 if problems else 0
+        if args.cmd == "apply":
+            notes = args.notes.read_text(encoding="utf-8") if args.notes else None
+            print("\n".join(apply(root, notes)))
+            print("Next: implement scripts/sop/test (docs/sop/ci-contract.md section 4), then: scripts/sop/bootstrap check")
+            return 0
+        if args.cmd == "check":
+            results = check(root, args.repo or _repo_from_git(root), os.environ.get("GITHUB_TOKEN"),
+                            run_tests=not args.skip_tests)
+            record(root, results)
+            for cid in CHECK_IDS:
+                if cid in results:
+                    print(f"{cid}: {results[cid][0]} - {results[cid][1]}")
+            return 0
+        if args.cmd == "record":
+            record(root, {args.check_id: (args.status, args.evidence)})
+            print(f"{args.check_id}: {args.status}")
+            return 0
+        if args.cmd == "finalize":
+            problems = finalize(root)
+            if problems:
+                print("Not ready:\n" + "\n".join(f"  - {p}" for p in problems))
+                return 1
+            print("ready: true. Next: commit on branch sop/bootstrap, push, and open a pull request to main;"
+                  " only the Owner merges it.")
+            return 0
+    except (BootstrapError, config.ConfigSyntaxError) as exc:
+        print(f"bootstrap: {exc}", file=sys.stderr)
+        return 1
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main())
